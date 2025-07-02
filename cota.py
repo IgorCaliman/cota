@@ -7,7 +7,9 @@ from workalendar.america import Brazil
 
 # ============================== FUNÇÕES DE LOGIN ============================== #
 def credenciais_inseridas():
-    usuarios_validos = {"saliba": "minasfia", "igor": "teste"}
+    usuarios_validos = {
+        "admin": st.secrets["senha_login"]
+    }
     usuario_inserido = st.session_state.get("user_input", "").lower()
     senha_inserida = st.session_state.get("password_input", "")
     if usuario_inserido in usuarios_validos and usuarios_validos[usuario_inserido] == senha_inserida:
