@@ -1,0 +1,13 @@
+streamlit
+os
+time
+json
+requests
+zipfile
+io
+pandas
+yfinance
+xml.etree.ElementTree
+datetime 
+timedeltadatetime
+workalendar.america
