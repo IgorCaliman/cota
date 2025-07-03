@@ -56,8 +56,7 @@ COLUNAS_EXIBIDAS = ["Ticker", "Quantidade de Ações", "Preço Ontem (R$)", "Pre
 
 
 # ============================== FUNÇÕES DE PROCESSAMENTO DE DADOS ============================== #
-# <<< MUDANÇA PRINCIPAL: FUNÇÃO COM CACHE AUTOMÁTICO DIÁRIO >>>
-@st.cache_data(show_spinner="Obtendo carteiras do dia do BTG (só na 1ª vez)...", ttl=86400)  # Cache por 24h
+@st.cache_data(show_spinner="Obtendo carteiras do dia do BTG (só na 1ª vez)...", ttl=86400) # Cache por 24h
 def obter_dados_base_do_dia(data_str: str):
     """
     Esta função agora é a única responsável por baixar e processar os dados do BTG.
@@ -163,7 +162,7 @@ def baixar_xmls(token, ticket) -> dict[str, str]:
     os.makedirs(PASTA_DESTINO, exist_ok=True)
     url = f"https://funds.btgpactual.com/reports/Ticket?ticketId={ticket}"
     # A barra de espera pode não ser ideal aqui, pois o cache executa a função em segundo plano
-    time.sleep(TEMPO_ESPERA)  # Simples espera
+    time.sleep(TEMPO_ESPERA) # Simples espera
     resp = requests.get(url, headers={"X-SecureConnect-Token": f"Bearer {token}"})
     mapeamento = {}
     try:
@@ -203,7 +202,6 @@ def css_var(v):
 if autenticar_usuario():
     st.set_page_config("Carteiras RV AF INVEST", layout="wide")
 
-    # <<< MUDANÇA: Título dinâmico com a data da carteira >>>
     data_carteira_str = ultimo_dia_util()
     data_formatada = datetime.strptime(data_carteira_str, '%Y-%m-%d').strftime('%d/%m/%Y')
     st.title(f"Carteiras RV AF INVEST - {data_formatada}")
@@ -213,13 +211,19 @@ if autenticar_usuario():
     st.session_state.setdefault('dados_calculados_cache', {})
     st.session_state.setdefault('last_update_time', {})
 
-    # <<< MUDANÇA PRINCIPAL: O botão de download foi removido daqui >>>
-    # A função com cache é chamada diretamente.
     dados_base_do_dia = obter_dados_base_do_dia(ultimo_dia_util())
 
     if not dados_base_do_dia:
         st.error(
             "Não foi possível obter os dados da carteira do BTG. Verifique os CNPJs ou a disponibilidade no portal.")
+        
+        # <<< ALTERAÇÃO IMPLEMENTADA AQUI >>>
+        # Adiciona um botão para o usuário tentar a busca novamente, limpando o cache.
+        if st.button("🔄 Tentar buscar dados do BTG novamente"):
+            # Limpa o cache de TODAS as funções @st.cache_data
+            st.cache_data.clear()
+            # Recarrega a página para acionar a função de busca novamente
+            st.rerun()
     else:
         nomes_fundos = {cnpj: FUNDOS[cnpj]["nome"] for cnpj in dados_base_do_dia.keys()}
         cnpj_selecionado = st.selectbox("Selecione o fundo para visualizar:", options=list(nomes_fundos.keys()),
@@ -239,7 +243,7 @@ if autenticar_usuario():
         if atualizar or cnpj_selecionado not in st.session_state.dados_calculados_cache:
             dados_base_fundo = dados_base_do_dia[cnpj_selecionado]
             resultados = recalcular_metricas(dados_base_fundo["df_base"], dados_base_fundo["cota_ontem"],
-                                             dados_base_fundo["qtd_cotas"], dados_base_fundo["pl"])
+                                              dados_base_fundo["qtd_cotas"], dados_base_fundo["pl"])
             st.session_state.dados_calculados_cache[cnpj_selecionado] = resultados
             st.session_state.last_update_time[cnpj_selecionado] = datetime.now()
             st.rerun()
@@ -253,9 +257,9 @@ if autenticar_usuario():
                    "% no Fundo": "{:.2%}", "Variação Preço (%)": "{:.2%}", "Variação Ponderada (%)": "{:.2%}"}
             st.dataframe(
                 df_final[COLUNAS_EXIBIDAS].sort_values("% no Fundo", ascending=False).style.format(fmt).map(css_var,
-                                                                                                            subset=[
-                                                                                                                "Variação Preço (%)",
-                                                                                                                "Variação Ponderada (%)"]),
+                                                                                                           subset=[
+                                                                                                               "Variação Preço (%)",
+                                                                                                               "Variação Ponderada (%)"]),
                 use_container_width=True, hide_index=True)
 
             c1, c2, c3 = st.columns(3)
