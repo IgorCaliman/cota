@@ -1,8 +1,16 @@
 import streamlit as st
-import os, time, json, requests, zipfile, io, pandas as pd, yfinance as yf
+import os
+import time
+import json
+import requests
+import zipfile
+import io
+import pandas as pd
+import yfinance as yf
 import xml.etree.ElementTree as ET
 from datetime import timedelta, datetime
-from zoneinfo import ZoneInfo # <<< 1. IMPORTAÇÃO ADICIONADA
+from zoneinfo import ZoneInfo
+from workalendar.america import Brazil # <<< CORREÇÃO APLICADA AQUI
 
 # ============================== FUNÇÕES DE LOGIN ============================== #
 def credenciais_inseridas():
@@ -242,7 +250,6 @@ if autenticar_usuario():
                     with st.spinner("Limpando cache e buscando novamente os dados do BTG..."):
                         st.cache_data.clear()
                     st.rerun()
-                # <<< 2. TEXTO DE AJUDA ADICIONADO >>>
                 st.caption("Puxe quando o preço D-1 parecer estranho.")
 
 
@@ -251,10 +258,7 @@ if autenticar_usuario():
             resultados = recalcular_metricas(dados_base_fundo["df_base"], dados_base_fundo["cota_ontem"],
                                               dados_base_fundo["qtd_cotas"], dados_base_fundo["pl"])
             st.session_state.dados_calculados_cache[cnpj_selecionado] = resultados
-            
-            # <<< 3. LINHA MODIFICADA PARA CORRIGIR O FUSO HORÁRIO >>>
             st.session_state.last_update_time[cnpj_selecionado] = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
-            
             st.rerun()
 
         if cnpj_selecionado in st.session_state.dados_calculados_cache:
