@@ -7,6 +7,11 @@ from workalendar.america import Brazil
 
 # ============================== FUNÇÕES DE LOGIN ============================== #
 def credenciais_inseridas():
+    # Este trecho assume que você tem um arquivo .streamlit/secrets.toml
+    if "senha_login" not in st.secrets:
+        st.error("A chave 'senha_login' não foi encontrada nos segredos do Streamlit.")
+        return
+        
     usuarios_validos = {
         "admin": st.secrets["senha_login"]
     }
@@ -58,12 +63,8 @@ COLUNAS_EXIBIDAS = ["Ticker", "Quantidade de Ações", "Preço Ontem (R$)", "Pre
 # ============================== FUNÇÕES DE PROCESSAMENTO DE DADOS ============================== #
 @st.cache_data(show_spinner="Obtendo carteiras do dia do BTG (só na 1ª vez)...", ttl=86400) # Cache por 24h
 def obter_dados_base_do_dia(data_str: str):
-    """
-    Esta função agora é a única responsável por baixar e processar os dados do BTG.
-    O cache garante que ela só execute de fato uma vez por dia.
-    O argumento 'data_str' serve como a "chave" do cache.
-    """
     token = gerar_token()
+    if not token: return {} # Retorna dicionário vazio se não conseguir gerar o token
     ticket = gerar_ticket(token, data_str)
     mapeamento_xmls = baixar_xmls(token, ticket)
 
@@ -139,10 +140,18 @@ def ultimo_dia_util(delay: int = 1) -> str:
 
 @st.cache_data(ttl=3600)
 def gerar_token():
-    resp = requests.post("https://funds.btgpactual.com/connect/token",
-                         headers={"Content-Type": "application/x-www-form-urlencoded"},
-                         data= st.secrets["senha_af"])
-    return resp.json()["access_token"]
+    if "senha_af" not in st.secrets:
+        st.error("A chave 'senha_af' não foi encontrada nos segredos do Streamlit.")
+        return None
+    try:
+        resp = requests.post("https://funds.btgpactual.com/connect/token",
+                             headers={"Content-Type": "application/x-www-form-urlencoded"},
+                             data= st.secrets["senha_af"])
+        resp.raise_for_status()
+        return resp.json()["access_token"]
+    except requests.RequestException as e:
+        st.error(f"Falha ao obter token do BTG: {e}")
+        return None
 
 
 def gerar_ticket(token, data):
@@ -153,16 +162,10 @@ def gerar_ticket(token, data):
     return resp.json()["ticket"]
 
 
-def barra_espera(segundos):
-    # Esta função pode ser removida ou simplificada se o spinner do cache for suficiente
-    pass
-
-
 def baixar_xmls(token, ticket) -> dict[str, str]:
     os.makedirs(PASTA_DESTINO, exist_ok=True)
     url = f"https://funds.btgpactual.com/reports/Ticket?ticketId={ticket}"
-    # A barra de espera pode não ser ideal aqui, pois o cache executa a função em segundo plano
-    time.sleep(TEMPO_ESPERA) # Simples espera
+    time.sleep(TEMPO_ESPERA)
     resp = requests.get(url, headers={"X-SecureConnect-Token": f"Bearer {token}"})
     mapeamento = {}
     try:
@@ -199,9 +202,9 @@ def css_var(v):
 
 
 # ============================== INTERFACE STREAMLIT ============================== #
-if autenticar_usuario():
-    st.set_page_config("Carteiras RV AF INVEST", layout="wide")
+st.set_page_config("Carteiras RV AF INVEST", layout="wide")
 
+if autenticar_usuario():
     data_carteira_str = ultimo_dia_util()
     data_formatada = datetime.strptime(data_carteira_str, '%Y-%m-%d').strftime('%d/%m/%Y')
     st.title(f"Carteiras RV AF INVEST - {data_formatada}")
@@ -217,12 +220,8 @@ if autenticar_usuario():
         st.error(
             "Não foi possível obter os dados da carteira do BTG. Verifique os CNPJs ou a disponibilidade no portal.")
         
-        # <<< ALTERAÇÃO IMPLEMENTADA AQUI >>>
-        # Adiciona um botão para o usuário tentar a busca novamente, limpando o cache.
         if st.button("🔄 Tentar buscar dados do BTG novamente"):
-            # Limpa o cache de TODAS as funções @st.cache_data
             st.cache_data.clear()
-            # Recarrega a página para acionar a função de busca novamente
             st.rerun()
     else:
         nomes_fundos = {cnpj: FUNDOS[cnpj]["nome"] for cnpj in dados_base_do_dia.keys()}
@@ -233,12 +232,25 @@ if autenticar_usuario():
         with col_header:
             st.subheader(f"📊 Tabela — {FUNDOS[cnpj_selecionado]['nome']}")
         with col_actions:
-            col_btn, col_time = st.columns(2)
-            with col_btn: atualizar = st.button("🔄 Atualizar Preços")
-            with col_time:
-                if st.session_state.last_update_time.get(cnpj_selecionado):
-                    st.write("");
-                    st.caption(f"Atualizado às {st.session_state.last_update_time[cnpj_selecionado]:%H:%M:%S}")
+            # <<< BLOCO DOS BOTÕES ATUALIZADO >>>
+            btn1, btn2 = st.columns(2)
+            
+            with btn1:
+                # Botão que apenas busca os preços atuais no Yahoo Finance
+                atualizar = st.button("🔄 Atualizar Preços")
+                
+            with btn2:
+                # Botão que limpa o cache e busca o XML do BTG novamente
+                if st.button("📥 Puxar Carteira BTG"):
+                    # Mostra um spinner durante a limpeza e recarregamento para feedback visual
+                    with st.spinner("Limpando cache e buscando novamente os dados do BTG..."):
+                        st.cache_data.clear()
+                    st.rerun()
+
+            if st.session_state.last_update_time.get(cnpj_selecionado):
+                # Posiciona o texto de atualização de forma mais consistente
+                st.caption(f"Preços atualizados às {st.session_state.last_update_time[cnpj_selecionado]:%H:%M:%S}")
+
 
         if atualizar or cnpj_selecionado not in st.session_state.dados_calculados_cache:
             dados_base_fundo = dados_base_do_dia[cnpj_selecionado]
