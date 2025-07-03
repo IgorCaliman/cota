@@ -2,12 +2,10 @@ import streamlit as st
 import os, time, json, requests, zipfile, io, pandas as pd, yfinance as yf
 import xml.etree.ElementTree as ET
 from datetime import timedelta, datetime
-from workalendar.america import Brazil
-
+from zoneinfo import ZoneInfo # <<< 1. IMPORTAÇÃO ADICIONADA
 
 # ============================== FUNÇÕES DE LOGIN ============================== #
 def credenciais_inseridas():
-    # Este trecho assume que você tem um arquivo .streamlit/secrets.toml
     if "senha_login" not in st.secrets:
         st.error("A chave 'senha_login' não foi encontrada nos segredos do Streamlit.")
         return
@@ -61,10 +59,10 @@ COLUNAS_EXIBIDAS = ["Ticker", "Quantidade de Ações", "Preço Ontem (R$)", "Pre
 
 
 # ============================== FUNÇÕES DE PROCESSAMENTO DE DADOS ============================== #
-@st.cache_data(show_spinner="Obtendo carteiras do dia do BTG (só na 1ª vez)...", ttl=86400) # Cache por 24h
+@st.cache_data(show_spinner="Obtendo carteiras do dia do BTG (só na 1ª vez)...", ttl=86400)
 def obter_dados_base_do_dia(data_str: str):
     token = gerar_token()
-    if not token: return {} # Retorna dicionário vazio se não conseguir gerar o token
+    if not token: return {}
     ticket = gerar_ticket(token, data_str)
     mapeamento_xmls = baixar_xmls(token, ticket)
 
@@ -232,24 +230,20 @@ if autenticar_usuario():
         with col_header:
             st.subheader(f"📊 Tabela — {FUNDOS[cnpj_selecionado]['nome']}")
         with col_actions:
-            # <<< BLOCO DOS BOTÕES ATUALIZADO >>>
             btn1, btn2 = st.columns(2)
             
             with btn1:
-                # Botão que apenas busca os preços atuais no Yahoo Finance
                 atualizar = st.button("🔄 Atualizar Preços")
-                
+                if st.session_state.last_update_time.get(cnpj_selecionado):
+                    st.caption(f"Preços atualizados às {st.session_state.last_update_time[cnpj_selecionado]:%H:%M:%S}")
+
             with btn2:
-                # Botão que limpa o cache e busca o XML do BTG novamente
                 if st.button("📥 Puxar Carteira BTG"):
-                    # Mostra um spinner durante a limpeza e recarregamento para feedback visual
                     with st.spinner("Limpando cache e buscando novamente os dados do BTG..."):
                         st.cache_data.clear()
                     st.rerun()
-
-            if st.session_state.last_update_time.get(cnpj_selecionado):
-                # Posiciona o texto de atualização de forma mais consistente
-                st.caption(f"Preços atualizados às {st.session_state.last_update_time[cnpj_selecionado]:%H:%M:%S}")
+                # <<< 2. TEXTO DE AJUDA ADICIONADO >>>
+                st.caption("Puxe quando o preço D-1 parecer estranho.")
 
 
         if atualizar or cnpj_selecionado not in st.session_state.dados_calculados_cache:
@@ -257,7 +251,10 @@ if autenticar_usuario():
             resultados = recalcular_metricas(dados_base_fundo["df_base"], dados_base_fundo["cota_ontem"],
                                               dados_base_fundo["qtd_cotas"], dados_base_fundo["pl"])
             st.session_state.dados_calculados_cache[cnpj_selecionado] = resultados
-            st.session_state.last_update_time[cnpj_selecionado] = datetime.now()
+            
+            # <<< 3. LINHA MODIFICADA PARA CORRIGIR O FUSO HORÁRIO >>>
+            st.session_state.last_update_time[cnpj_selecionado] = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
+            
             st.rerun()
 
         if cnpj_selecionado in st.session_state.dados_calculados_cache:
@@ -287,7 +284,7 @@ if autenticar_usuario():
                 rent_ytd = (cota_hoje / ref_minas_fia['cota_ytd'] - 1) if ref_minas_fia['cota_ytd'] > 0 else 0
                 rent_inicio = (cota_hoje / ref_minas_fia['cota_inicio'] - 1) if ref_minas_fia['cota_inicio'] > 0 else 0
 
-                hoje_str, hoje_dt = datetime.now().strftime('%d/%m/%Y'), datetime.now().strftime('%Y-%m-%d')
+                hoje_str, hoje_dt = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y'), datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%Y-%m-%d')
                 cdi_acumulado = get_cdi_acumulado(data_inicio="15/10/2020", data_fim=hoje_str)
                 ibov_acumulado_inicio = get_ibov_acumulado(data_inicio="2020-10-15", data_fim=hoje_dt)
 
