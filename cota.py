@@ -10,7 +10,7 @@ import yfinance as yf
 import xml.etree.ElementTree as ET
 from datetime import timedelta, datetime
 from zoneinfo import ZoneInfo
-from workalendar.america import Brazil # <<< CORREÇÃO APLICADA AQUI
+from workalendar.america import Brazil
 
 # ============================== FUNÇÕES DE LOGIN ============================== #
 def credenciais_inseridas():
@@ -230,9 +230,19 @@ if autenticar_usuario():
             st.cache_data.clear()
             st.rerun()
     else:
-        nomes_fundos = {cnpj: FUNDOS[cnpj]["nome"] for cnpj in dados_base_do_dia.keys()}
-        cnpj_selecionado = st.selectbox("Selecione o fundo para visualizar:", options=list(nomes_fundos.keys()),
-                                        format_func=lambda c: nomes_fundos[c], key="fundo_selectbox")
+        # <<< ALTERAÇÃO AQUI: Garante que a ordem dos fundos seja sempre a mesma definida em 'FUNDOS'
+        # Define a lista com a ordem de exibição desejada para os fundos
+        ordem_especifica = [
+            "FD11209172000196",     # MINAS FIA
+            "FD60096402000163",     # MINAS DIVIDENDOS FIA
+            "FD52204085000123",     # MINAS ONE FIA
+            "FD48992682000192"      # ALFA HORIZON FIA
+        ]
+        # Filtra a lista para mostrar apenas os fundos disponíveis, mantendo a sua ordem personalizada
+        opcoes_ordenadas = [cnpj for cnpj in ordem_especifica if cnpj in dados_base_do_dia]
+        nomes_fundos = {cnpj: FUNDOS[cnpj]["nome"] for cnpj in opcoes_ordenadas}
+        cnpj_selecionado = st.selectbox("Selecione o fundo para visualizar:", options=opcoes_ordenadas,
+                                          format_func=lambda c: nomes_fundos.get(c, "Nome não encontrado"), key="fundo_selectbox")
 
         col_header, col_actions = st.columns([3, 2])
         with col_header:
@@ -316,7 +326,9 @@ if autenticar_usuario():
 
                 texto_relativo_cdi = "acima do CDI" if percentual_cdi >= 0 else "abaixo do CDI"
                 valor_display_cdi = f"{abs(percentual_cdi):.2%} {texto_relativo_cdi}"
-                st.metric("Performance vs CDI", valor_display_cdi, delta=f"{percentual_cdi:.2%}", delta_color="off")
+                
+                # <<< ALTERAÇÃO AQUI: Adiciona a data à métrica de performance
+                st.metric("Performance vs CDI (desde 15/10/2020)", valor_display_cdi, delta=f"{percentual_cdi:.2%}", delta_color="off")
 
             with st.expander("🔍 Parâmetros do Cálculo"):
                 ex = dados_calculados["extras"]
