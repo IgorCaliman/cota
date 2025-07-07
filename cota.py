@@ -120,9 +120,9 @@ def get_ibov_acumulado(data_inicio: str, data_fim: str) -> float:
 
 
 def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl):
-    with st.spinner("Buscando preços atuais no Yahoo Finance..."):
-        df = df_base.copy()
-        df["Preço Hoje (R$)"] = df["Ticker"].map(lambda t: yf.Ticker(f"{t}.SA").info.get("regularMarketPrice", None))
+    # Removido o spinner daqui para ser colocado na lógica principal
+    df = df_base.copy()
+    df["Preço Hoje (R$)"] = df["Ticker"].map(lambda t: yf.Ticker(f"{t}.SA").info.get("regularMarketPrice", None))
     df["Variação Preço (%)"] = (df["Preço Hoje (R$)"] / df["Preço Ontem (R$)"] - 1).fillna(0)
     df["Valor Hoje (R$)"] = df["Quantidade de Ações"] * df["Preço Hoje (R$)"]
     valor_hoje = df["Valor Hoje (R$)"].fillna(0).sum()
@@ -217,8 +217,9 @@ if autenticar_usuario():
 
     st.write(f"Usuário: **{st.session_state.get('username', '').capitalize()}**")
 
+    # <<< ALTERAÇÃO AQUI: Troca o 'last_update_time' por um global
     st.session_state.setdefault('dados_calculados_cache', {})
-    st.session_state.setdefault('last_update_time', {})
+    st.session_state.setdefault('global_last_update_time', None)
 
     dados_base_do_dia = obter_dados_base_do_dia(ultimo_dia_util())
 
@@ -230,15 +231,12 @@ if autenticar_usuario():
             st.cache_data.clear()
             st.rerun()
     else:
-        # <<< ALTERAÇÃO AQUI: Garante que a ordem dos fundos seja sempre a mesma definida em 'FUNDOS'
-        # Define a lista com a ordem de exibição desejada para os fundos
         ordem_especifica = [
             "FD11209172000196",     # MINAS FIA
             "FD60096402000163",     # MINAS DIVIDENDOS FIA
             "FD52204085000123",     # MINAS ONE FIA
             "FD48992682000192"      # ALFA HORIZON FIA
         ]
-        # Filtra a lista para mostrar apenas os fundos disponíveis, mantendo a sua ordem personalizada
         opcoes_ordenadas = [cnpj for cnpj in ordem_especifica if cnpj in dados_base_do_dia]
         nomes_fundos = {cnpj: FUNDOS[cnpj]["nome"] for cnpj in opcoes_ordenadas}
         cnpj_selecionado = st.selectbox("Selecione o fundo para visualizar:", options=opcoes_ordenadas,
@@ -252,8 +250,9 @@ if autenticar_usuario():
             
             with btn1:
                 atualizar = st.button("🔄 Atualizar Preços")
-                if st.session_state.last_update_time.get(cnpj_selecionado):
-                    st.caption(f"Preços atualizados às {st.session_state.last_update_time[cnpj_selecionado]:%H:%M:%S}")
+                # <<< ALTERAÇÃO AQUI: Usa o timestamp global
+                if st.session_state.global_last_update_time:
+                    st.caption(f"Preços atualizados às {st.session_state.global_last_update_time:%H:%M:%S}")
 
             with btn2:
                 if st.button("📥 Puxar Carteira BTG"):
@@ -262,14 +261,26 @@ if autenticar_usuario():
                     st.rerun()
                 st.caption("Puxe quando o preço D-1 parecer estranho.")
 
-
-        if atualizar or cnpj_selecionado not in st.session_state.dados_calculados_cache:
-            dados_base_fundo = dados_base_do_dia[cnpj_selecionado]
-            resultados = recalcular_metricas(dados_base_fundo["df_base"], dados_base_fundo["cota_ontem"],
-                                              dados_base_fundo["qtd_cotas"], dados_base_fundo["pl"])
-            st.session_state.dados_calculados_cache[cnpj_selecionado] = resultados
-            st.session_state.last_update_time[cnpj_selecionado] = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
+        # <<< ALTERAÇÃO AQUI: Lógica para atualizar todos os fundos de uma vez
+        if atualizar:
+            with st.spinner("Atualizando os preços de todos os fundos..."):
+                for cnpj, dados_base_fundo in dados_base_do_dia.items():
+                    resultados = recalcular_metricas(dados_base_fundo["df_base"], dados_base_fundo["cota_ontem"],
+                                                      dados_base_fundo["qtd_cotas"], dados_base_fundo["pl"])
+                    st.session_state.dados_calculados_cache[cnpj] = resultados
+            
+            st.session_state.global_last_update_time = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
             st.rerun()
+
+        # <<< ALTERAÇÃO AQUI: Lógica para calcular um fundo individualmente na primeira vez que for selecionado
+        if cnpj_selecionado not in st.session_state.dados_calculados_cache:
+            with st.spinner(f"Buscando preços para {nomes_fundos[cnpj_selecionado]}..."):
+                dados_base_fundo = dados_base_do_dia[cnpj_selecionado]
+                resultados = recalcular_metricas(dados_base_fundo["df_base"], dados_base_fundo["cota_ontem"],
+                                                  dados_base_fundo["qtd_cotas"], dados_base_fundo["pl"])
+                st.session_state.dados_calculados_cache[cnpj_selecionado] = resultados
+                st.rerun()
+
 
         if cnpj_selecionado in st.session_state.dados_calculados_cache:
             dados_calculados, cota_ontem_base = st.session_state.dados_calculados_cache[cnpj_selecionado], \
@@ -327,7 +338,6 @@ if autenticar_usuario():
                 texto_relativo_cdi = "acima do CDI" if percentual_cdi >= 0 else "abaixo do CDI"
                 valor_display_cdi = f"{abs(percentual_cdi):.2%} {texto_relativo_cdi}"
                 
-                # <<< ALTERAÇÃO AQUI: Adiciona a data à métrica de performance
                 st.metric("Performance vs CDI (desde 15/10/2020)", valor_display_cdi, delta=f"{percentual_cdi:.2%}", delta_color="off")
 
             with st.expander("🔍 Parâmetros do Cálculo"):
