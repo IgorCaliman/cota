@@ -230,19 +230,23 @@ if autenticar_usuario():
             st.rerun()
     else:
         ordem_especifica = [
-            "FD11209172000196",     # MINAS FIA
+            CNPJ_MINAS_FIA,         # MINAS FIA
             "FD60096402000163",     # MINAS DIVIDENDOS FIA
             "FD52204085000123",     # MINAS ONE FIA
             "FD48992682000192"      # ALFA HORIZON FIA
         ]
         opcoes_ordenadas = [cnpj for cnpj in ordem_especifica if cnpj in dados_base_do_dia]
         nomes_fundos = {cnpj: FUNDOS[cnpj]["nome"] for cnpj in opcoes_ordenadas}
+        
+        # <<< ALTERAÇÃO AQUI: Container para o resumo ser inserido depois
+        summary_container = st.container()
+        
         cnpj_selecionado = st.selectbox("Selecione o fundo para visualizar:", options=opcoes_ordenadas,
                                           format_func=lambda c: nomes_fundos.get(c, "Nome não encontrado"), key="fundo_selectbox")
 
         col_header, col_actions = st.columns([3, 2])
         with col_header:
-            st.subheader(f"📊 Tabela — {FUNDOS[cnpj_selecionado]['nome']}")
+            st.subheader(f"📊 Detalhes do Fundo — {FUNDOS[cnpj_selecionado]['nome']}")
         with col_actions:
             btn1, btn2 = st.columns(2)
             
@@ -258,7 +262,9 @@ if autenticar_usuario():
                     st.rerun()
                 st.caption("Puxe quando o preço D-1 parecer estranho.")
 
-        if atualizar:
+        # <<< ALTERAÇÃO AQUI: Lógica de cálculo unificada
+        is_cache_incomplete = len(st.session_state.dados_calculados_cache) != len(dados_base_do_dia)
+        if atualizar or is_cache_incomplete:
             with st.spinner("Atualizando os preços de todos os fundos..."):
                 for cnpj, dados_base_fundo in dados_base_do_dia.items():
                     resultados = recalcular_metricas(dados_base_fundo["df_base"], dados_base_fundo["cota_ontem"],
@@ -268,18 +274,34 @@ if autenticar_usuario():
             st.session_state.global_last_update_time = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
             st.rerun()
 
-        if cnpj_selecionado not in st.session_state.dados_calculados_cache:
-            with st.spinner(f"Buscando preços para {nomes_fundos[cnpj_selecionado]}..."):
-                dados_base_fundo = dados_base_do_dia[cnpj_selecionado]
-                resultados = recalcular_metricas(dados_base_fundo["df_base"], dados_base_fundo["cota_ontem"],
-                                                  dados_base_fundo["qtd_cotas"], dados_base_fundo["pl"])
-                st.session_state.dados_calculados_cache[cnpj_selecionado] = resultados
-                # <<< CORREÇÃO AQUI: Garante que o timestamp seja definido no primeiro carregamento
-                st.session_state.global_last_update_time = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
-                st.rerun()
-
-
+        # A lógica de exibição só roda se o cache estiver completo
         if cnpj_selecionado in st.session_state.dados_calculados_cache:
+            
+            # <<< ALTERAÇÃO AQUI: Adiciona a tabela de resumo no container
+            with summary_container:
+                st.subheader("📊 Resumo das Variações")
+                summary_data = []
+                for cnpj in ordem_especifica:
+                    if cnpj in st.session_state.dados_calculados_cache:
+                        fund_name = FUNDOS[cnpj]["nome"]
+                        variation = st.session_state.dados_calculados_cache[cnpj]['var_cota']
+                        summary_data.append({"Fundo": fund_name, "Variação da Cota": variation})
+                
+                if summary_data:
+                    summary_df = pd.DataFrame(summary_data)
+
+                    def style_variation(v):
+                        color = 'green' if v > 0 else 'red' if v < 0 else 'darkgray'
+                        return f'color: {color}'
+                    
+                    st.dataframe(
+                        summary_df.style.map(style_variation, subset=['Variação da Cota']).format({"Variação da Cota": "{:.4%}"}),
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                st.divider()
+
+            # Lógica de exibição da tabela principal e métricas (como antes)
             dados_calculados, cota_ontem_base = st.session_state.dados_calculados_cache[cnpj_selecionado], \
             dados_base_do_dia[cnpj_selecionado]['cota_ontem']
             df_final = dados_calculados["df"]
