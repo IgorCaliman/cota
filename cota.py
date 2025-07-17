@@ -37,7 +37,7 @@ COLUNAS_EXIBIDAS = ["Ticker", "Quantidade de Ações", "Preço Ontem (R$)", "Pre
 # ============================== DADOS DE CLASSIFICAÇÃO SETORIAL ==============================
 # Lista fixa e final de empresas e seus setores.
 
-    dados_setoriais = [
+dados_setoriais = [
         {"SETOR": "BDR – Setor internacional", "CODIGO": "AAPL34"},
         {"SETOR": "Bancos", "CODIGO": "ABCB4"},
         {"SETOR": "Exploração de Imóveis", "CODIGO": "ALOS3"},
