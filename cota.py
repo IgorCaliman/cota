@@ -203,6 +203,77 @@ def buscar_precos_empresas(tickers: list[str]):
 
 # ==============================  FIM DA SUBSTITUIÇÃO ==============================
 
+# ============================== FUNÇÕES AUXILIARES ============================== #
+
+def ultimo_dia_util(delay: int = 1) -> str:
+    cal, d = Brazil(), pd.Timestamp.now(tz="America/Sao_Paulo") - timedelta(days=delay)
+    while not cal.is_working_day(d.date()): d -= timedelta(days=1)
+    return d.strftime("%Y-%m-%d")
+
+
+@st.cache_data(ttl=3600)
+def gerar_token():
+    if "senha_af" not in st.secrets:
+        st.error("A chave 'senha_af' não foi encontrada nos segredos do Streamlit.")
+        return None
+    try:
+        resp = requests.post("https://funds.btgpactual.com/connect/token",
+                             headers={"Content-Type": "application/x-www-form-urlencoded"},
+                             data= st.secrets["senha_af"])
+        resp.raise_for_status()
+        return resp.json()["access_token"]
+    except requests.RequestException as e:
+        st.error(f"Falha ao obter token do BTG: {e}")
+        return None
+
+
+def gerar_ticket(token, data):
+    payload = json.dumps({"contract": {"startDate": data, "endDate": data, "typeReport": f"{TIPO_RELATORIO}"}})
+    resp = requests.post("https://funds.btgpactual.com/reports/Portfolio",
+                         headers={"X-SecureConnect-Token": f"Bearer {token}", "Content-Type": "application/json"},
+                         data=payload)
+    return resp.json()["ticket"]
+
+
+def baixar_xmls(token, ticket) -> dict[str, str]:
+    os.makedirs(PASTA_DESTINO, exist_ok=True)
+    url = f"https://funds.btgpactual.com/reports/Ticket?ticketId={ticket}"
+    time.sleep(TEMPO_ESPERA)
+    resp = requests.get(url, headers={"X-SecureConnect-Token": f"Bearer {token}"})
+    mapeamento = {}
+    try:
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
+            zf.extractall(PASTA_DESTINO)
+        for nome in os.listdir(PASTA_DESTINO):
+            caminho, cnpj_arquivo = os.path.join(PASTA_DESTINO, nome), nome.split("_")[0]
+            if cnpj_arquivo in FUNDOS:
+                mapeamento[cnpj_arquivo] = caminho
+            else:
+                os.remove(caminho)
+    except (zipfile.BadZipFile, KeyError):
+        st.error("❌ ZIP inválido ou indisponível no BTG. Tente novamente mais tarde.")
+    return mapeamento
+
+
+def extrair_xml(path):
+    root = ET.parse(path).getroot()
+    head = root.find(".//header")
+    cota_ontem, qtd_cotas, pl = float(head.findtext("valorcota")), float(head.findtext("quantidade")), float(
+        head.findtext("patliq"))
+    linhas = [{"Ticker": ac.findtext("codativo").strip(), "Quantidade de Ações": float(ac.findtext("qtdisponivel")),
+               "Preço Ontem (R$)": float(ac.findtext("puposicao")),
+               "Valor Ontem (R$)": float(ac.findtext("qtdisponivel")) * float(ac.findtext("puposicao"))} for ac in
+              root.findall(".//acoes")]
+    return pd.DataFrame(linhas), cota_ontem, qtd_cotas, pl
+
+
+def css_var(v):
+    if isinstance(v, (float, int)):
+        if v > 0: return "color: green;"
+        if v < 0: return "color: red;"
+    return ""
+
+
 # ============================== INTERFACE STREAMLIT ============================== #
 st.set_page_config("Carteiras RV AF INVEST", layout="wide")
 
