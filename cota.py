@@ -35,7 +35,7 @@ dados_setoriais = [
     {"SETOR": "Energia Elétrica", "CODIGO": "ALUP11"},
     {"SETOR": "Energia Elétrica", "CODIGO": "ELET3"},
     {"SETOR": "Energia Elétrica", "CODIGO": "ENGI11"},
-    {"SETOR": "Energia Elétrica", "CODIGO": "CMIG"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "CMIG3"},
     {"SETOR": "Energia Elétrica", "CODIGO": "CPLE6"},
 
     # Oil and Gas
