@@ -145,127 +145,57 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl):
 ## NOVA ADIÇÃO: Função para buscar dados das empresas acompanhadas ##
 # ==============================  COPIE E SUBSTITUA ESTA FUNÇÃO ==============================
 
-@st.cache_data(show_spinner="Buscando preços das empresas...", ttl=900) # Cache de 15 minutos (900s)
+@st.cache_data(show_spinner="Buscando preços e calculando volatilidade...", ttl=900) # Cache de 15 minutos (900s)
 def buscar_precos_empresas(tickers: list[str]):
     """
-    Busca os dados de fechamento de D-1 e o preço atual para uma lista de tickers
-    de forma robusta, garantindo o alinhamento dos dados.
+    Busca os dados de D-1, D-0 e calcula a volatilidade histórica (60 dias)
+    para uma lista de tickers de forma robusta.
     """
     try:
-        # Puxa os dados dos últimos 2 dias. auto_adjust=True ajusta para splits/dividendos.
-        dados = yf.download(tickers, period="2d", progress=False, auto_adjust=True)
+        # Período maior para garantir ~60 dias de pregão para o cálculo da volatilidade
+        dados = yf.download(tickers, period="90d", progress=False, auto_adjust=True)
         
         if dados.empty:
             st.warning("Não foi possível obter os dados de preços das empresas via yfinance.")
             return pd.DataFrame()
 
-        # Isolar apenas os preços de fechamento ('Close'). 
-        # O resultado é um DataFrame com datas no índice e tickers nas colunas.
-        precos_df = dados['Close']
+        # --- Cálculo da Volatilidade ---
+        # 1. Calcular os retornos diários para cada ação
+        retornos_diarios = dados['Close'].pct_change()
+        # 2. Calcular o desvio padrão dos retornos (essa é a volatilidade diária)
+        # Usamos .iloc[-60:] para pegar apenas os últimos 60 pregões.
+        volatilidade_60d = retornos_diarios.iloc[-60:].std()
 
-        # Se tivermos menos de 2 dias de dados (ex: uma segunda-feira de manhã),
-        # tratamos para não dar erro.
+        # --- Extração de Preços (Ontem e Hoje) ---
+        precos_df = dados['Close']
         if len(precos_df) < 2:
-            st.warning("Dados de apenas um dia disponíveis. Usando o mesmo valor para 'Ontem' e 'Hoje'.")
             preco_ontem = precos_df.iloc[0]
             preco_hoje = precos_df.iloc[0]
         else:
-            preco_ontem = precos_df.iloc[-2] # Preços de D-2 (fechamento de ontem)
-            preco_hoje = precos_df.iloc[-1]  # Preços de D-1 (fechamento mais recente)
+            preco_ontem = precos_df.iloc[-2]
+            preco_hoje = precos_df.iloc[-1]
 
-        # Criar o DataFrame final a partir das séries de preços.
-        # O Pandas alinha automaticamente os dados pelo índice (que são os tickers).
+        # --- Montagem do DataFrame Final ---
         df_resultado = pd.DataFrame({
             'Preço Ontem (R$)': preco_ontem,
             'Preço Hoje (R$)': preco_hoje
         })
-
-        # Remove qualquer linha que tenha valores nulos (caso um ticker tenha falhado)
         df_resultado.dropna(inplace=True)
-
-        # Calcula a variação
         df_resultado['Variação (%)'] = (df_resultado['Preço Hoje (R$)'] / df_resultado['Preço Ontem (R$)']) - 1
-
-        # Transforma o índice (os tickers) em uma coluna e renomeia
         df_resultado.reset_index(inplace=True)
         df_resultado.rename(columns={'index': 'Ticker'}, inplace=True)
+
+        # Adicionar a coluna de volatilidade mapeando pelo ticker
+        df_resultado['Volatilidade (60d)'] = df_resultado['Ticker'].map(volatilidade_60d)
         
-        # Reordena as colunas para a exibição final
-        return df_resultado[['Ticker', 'Preço Ontem (R$)', 'Preço Hoje (R$)', 'Variação (%)']]
+        # Reordenar colunas
+        return df_resultado[['Ticker', 'Preço Ontem (R$)', 'Preço Hoje (R$)', 'Variação (%)', 'Volatilidade (60d)']]
 
     except Exception as e:
         st.error(f"Ocorreu um erro ao buscar os preços no yfinance: {e}")
         return pd.DataFrame()
 
-# ============================== FUNÇÕES AUXILIARES ============================== #
-def ultimo_dia_util(delay: int = 1) -> str:
-    cal, d = Brazil(), pd.Timestamp.now(tz="America/Sao_Paulo") - timedelta(days=delay)
-    while not cal.is_working_day(d.date()): d -= timedelta(days=1)
-    return d.strftime("%Y-%m-%d")
-
-
-@st.cache_data(ttl=3600)
-def gerar_token():
-    if "senha_af" not in st.secrets:
-        st.error("A chave 'senha_af' não foi encontrada nos segredos do Streamlit.")
-        return None
-    try:
-        resp = requests.post("https://funds.btgpactual.com/connect/token",
-                             headers={"Content-Type": "application/x-www-form-urlencoded"},
-                             data= st.secrets["senha_af"])
-        resp.raise_for_status()
-        return resp.json()["access_token"]
-    except requests.RequestException as e:
-        st.error(f"Falha ao obter token do BTG: {e}")
-        return None
-
-
-def gerar_ticket(token, data):
-    payload = json.dumps({"contract": {"startDate": data, "endDate": data, "typeReport": f"{TIPO_RELATORIO}"}})
-    resp = requests.post("https://funds.btgpactual.com/reports/Portfolio",
-                         headers={"X-SecureConnect-Token": f"Bearer {token}", "Content-Type": "application/json"},
-                         data=payload)
-    return resp.json()["ticket"]
-
-
-def baixar_xmls(token, ticket) -> dict[str, str]:
-    os.makedirs(PASTA_DESTINO, exist_ok=True)
-    url = f"https://funds.btgpactual.com/reports/Ticket?ticketId={ticket}"
-    time.sleep(TEMPO_ESPERA)
-    resp = requests.get(url, headers={"X-SecureConnect-Token": f"Bearer {token}"})
-    mapeamento = {}
-    try:
-        with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
-            zf.extractall(PASTA_DESTINO)
-        for nome in os.listdir(PASTA_DESTINO):
-            caminho, cnpj_arquivo = os.path.join(PASTA_DESTINO, nome), nome.split("_")[0]
-            if cnpj_arquivo in FUNDOS:
-                mapeamento[cnpj_arquivo] = caminho
-            else:
-                os.remove(caminho)
-    except (zipfile.BadZipFile, KeyError):
-        st.error("❌ ZIP inválido ou indisponível no BTG. Tente novamente mais tarde.")
-    return mapeamento
-
-
-def extrair_xml(path):
-    root = ET.parse(path).getroot()
-    head = root.find(".//header")
-    cota_ontem, qtd_cotas, pl = float(head.findtext("valorcota")), float(head.findtext("quantidade")), float(
-        head.findtext("patliq"))
-    linhas = [{"Ticker": ac.findtext("codativo").strip(), "Quantidade de Ações": float(ac.findtext("qtdisponivel")),
-               "Preço Ontem (R$)": float(ac.findtext("puposicao")),
-               "Valor Ontem (R$)": float(ac.findtext("qtdisponivel")) * float(ac.findtext("puposicao"))} for ac in
-              root.findall(".//acoes")]
-    return pd.DataFrame(linhas), cota_ontem, qtd_cotas, pl
-
-
-def css_var(v):
-    if isinstance(v, (float, int)):
-        if v > 0: return "color: green;"
-        if v < 0: return "color: red;"
-    return ""
-
+# ==============================  FIM DA SUBSTITUIÇÃO ==============================
 
 # ============================== INTERFACE STREAMLIT ============================== #
 st.set_page_config("Carteiras RV AF INVEST", layout="wide")
@@ -421,36 +351,62 @@ if autenticar_usuario():
                     st.write(f"💼 Patrimônio estimado:  R$ {ex['patrimonio']:,.2f}")
                     st.write(f"🧮 Quantidade de cotas:  {ex['qtd_cotas']:,.2f}")
 
-    # ============================== NOVA ADIÇÃO: ABA DE ACOMPANHAMENTO DE EMPRESAS ============================== #
+   # ==============================  COPIE E SUBSTITUA ESTE BLOCO ==============================
+
     with tab_empresas:
         st.subheader("Acompanhamento da Variação de Empresas")
-
-        # Botão de atualização específico para esta aba
-        if st.button("🔄 Atualizar Preços das Empresas"):
-            # Limpa o cache APENAS da função de buscar preços para forçar a atualização
-            buscar_precos_empresas.clear()
-        
+    
+        # Inicializa o estado da última atualização se não existir
+        if 'last_update_empresas' not in st.session_state:
+            st.session_state.last_update_empresas = None
+    
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            # Botão de atualização específico para esta aba
+            if st.button("🔄 Atualizar Preços", key="update_empresas"):
+                buscar_precos_empresas.clear()
+                # Define a hora da atualização no momento do clique
+                st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
+                st.rerun() # Força o rerun para buscar os dados novos
+    
+        with col2:
+            # Mostra a hora da última atualização
+            if st.session_state.last_update_empresas:
+                st.caption(f"Última atualização: **{st.session_state.last_update_empresas.strftime('%d/%m/%Y às %H:%M:%S')}**")
+            else:
+                 st.caption("Clique em 'Atualizar Preços' para carregar os dados.")
+    
         # Chama a função para obter os dados de preço
         df_empresas = buscar_precos_empresas(EMPRESAS_ACOMPANHADAS)
-
+    
+        # Se for a primeira vez que os dados são carregados, define a hora.
+        if df_empresas is not None and not df_empresas.empty and st.session_state.last_update_empresas is None:
+            st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
+            st.rerun()
+    
         if not df_empresas.empty:
-            st.caption("Os preços 'Hoje' são atualizados a cada 15 minutos (ou ao clicar no botão de atualizar). O preço de 'Ontem' é o valor de fechamento do último pregão.")
-
-            # Formatação e Estilo
+            # Tira o ".SA" do ticker ANTES de exibir
+            df_empresas_display = df_empresas.copy()
+            df_empresas_display['Ticker'] = df_empresas_display['Ticker'].str.replace(".SA", "", regex=False)
+    
+            st.caption("A 'Volatilidade (60d)' é o desvio padrão dos retornos diários nos últimos 60 pregões.")
+    
+            # Formatação e Estilo, incluindo a nova coluna
             formatos_empresas = {
                 "Preço Ontem (R$)": "R$ {:.2f}",
                 "Preço Hoje (R$)": "R$ {:.2f}",
-                "Variação (%)": "{:.2%}"
+                "Variação (%)": "{:.2%}",
+                "Volatilidade (60d)": "{:.2%}" # Formata como porcentagem
             }
-
+    
             def estilo_variacao_empresa(v):
                 if isinstance(v, (int, float)):
                     cor = 'green' if v > 0 else 'red' if v < 0 else 'darkgray'
                     return f'color: {cor}'
                 return ''
-
+    
             st.dataframe(
-                df_empresas.style.applymap(
+                df_empresas_display.style.applymap(
                     estilo_variacao_empresa, subset=['Variação (%)']
                 ).format(formatos_empresas),
                 use_container_width=True,
@@ -458,3 +414,5 @@ if autenticar_usuario():
             )
         else:
             st.info("Aguardando dados das empresas. Clique no botão de atualização se necessário.")
+
+# ==============================  FIM DA SUBSTITUIÇÃO ==============================
