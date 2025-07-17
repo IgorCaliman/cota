@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 from workalendar.america import Brazil
 
 # ============================== DADOS DE CLASSIFICAÇÃO SETORIAL ==============================
-# Lista final de empresas, com o novo "Grupo Simpar" e as exclusões aplicadas.
+# Versão final da lista de empresas e setores, com todas as modificações aplicadas.
 
 dados_setoriais = [
     # Novo Grupo Simpar
@@ -23,60 +23,79 @@ dados_setoriais = [
     {"SETOR": "Grupo Simpar", "CODIGO": "JSLG3"},
     {"SETOR": "Grupo Simpar", "CODIGO": "SIMH3"},
     {"SETOR": "Grupo Simpar", "CODIGO": "AMOB3"},
-    
-    # Demais Setores
-    {"SETOR": "BDR – Setor internacional", "CODIGO": "AAPL34"},
-    {"SETOR": "Bancos", "CODIGO": "ABCB4"},
-    {"SETOR": "Exploração de Imóveis", "CODIGO": "ALOS3"},
-    {"SETOR": "BDR – Setor internacional", "CODIGO": "AMZO34"},
+
+    # Educação
     {"SETOR": "Serviços Educacionais", "CODIGO": "ANIM3"},
-    {"SETOR": "BDR – Setor internacional", "CODIGO": "BABA34"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "COGN3"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "VTRU3"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "YDUQ3"},
+    
+    # Energia Elétrica
+    {"SETOR": "Energia Elétrica", "CODIGO": "NEOE3"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "ALUP11"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "ELET3"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "ENGI11"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "CMIG"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "CPLE6"},
+
+    # Oil and Gas
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "BRAV3"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "CSAN3"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PETR4"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PRIO3"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "RECV3"},
+
+    # Celulose
+    {"SETOR": "Papel e Celulose", "CODIGO": "KLBN11"},
+    {"SETOR": "Papel e Celulose", "CODIGO": "SUZB3"},
+
+    # Real State (antigo Exploração de Imóveis e Incorporações)
+    {"SETOR": "Real State", "CODIGO": "ALOS3"},
+    {"SETOR": "Real State", "CODIGO": "EZTC3"},
+    {"SETOR": "Real State", "CODIGO": "HBSA3"},
+    {"SETOR": "Real State", "CODIGO": "LOGG3"},
+    {"SETOR": "Real State", "CODIGO": "MELK3"},
+
+    # Bancos
+    {"SETOR": "Bancos", "CODIGO": "ITSA4"},
+    {"SETOR": "Bancos", "CODIGO": "ABCB4"},
     {"SETOR": "Bancos", "CODIGO": "BBAS3"},
     {"SETOR": "Bancos", "CODIGO": "BBDC4"},
-    {"SETOR": "BDR – Setor internacional", "CODIGO": "BERK34"},
-    {"SETOR": "BDR – Setor internacional", "CODIGO": "BIEV39"},
-    {"SETOR": "BDR – Setor internacional", "CODIGO": "BOAC34"},
     {"SETOR": "Bancos", "CODIGO": "BPAC11"},
-    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "BRAV3"},
     {"SETOR": "Bancos", "CODIGO": "BRBI11"},
     {"SETOR": "Bancos", "CODIGO": "BRSR6"},
     {"SETOR": "Bancos", "CODIGO": "CASH3"},
-    {"SETOR": "Serviços Educacionais", "CODIGO": "COGN3"},
+    {"SETOR": "Bancos", "CODIGO": "ITUB4"},
+    
+    # Material Rodoviário
+    {"SETOR": "Material Rodoviário", "CODIGO": "MYPK3"},
+    {"SETOR": "Material Rodoviário", "CODIGO": "RAPT4"},
+    {"SETOR": "Material Rodoviário", "CODIGO": "TUPY3"},
+
+    # BDRs
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "AAPL34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "AMZO34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "BABA34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "BERK34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "BIEV39"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "BOAC34"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "COLG34"},
-    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "CSAN3"},
-    {"SETOR": "Incorporações", "CODIGO": "EZTC3"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "GOGL34"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "GOGL35"},
-    {"SETOR": "Exploração de Imóveis", "CODIGO": "HBSA3"},
-    {"SETOR": "Holdings Diversificadas", "CODIGO": "ITSA4"},
-    {"SETOR": "Bancos", "CODIGO": "ITUB4"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "JPMC34"},
-    {"SETOR": "Papel e Celulose", "CODIGO": "KLBN11"},
-    {"SETOR": "Exploração de Imóveis", "CODIGO": "LOGG3"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "M2ST34"},
-    {"SETOR": "Incorporações", "CODIGO": "MELK3"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "M1TA34"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "MCDC34"},
-    {"SETOR": "Computadores e Equipamentos", "CODIGO": "MLAS3"},
-    {"SETOR": "Automóveis e Motocicletas", "CODIGO": "MYPK3"},
-    {"SETOR": "Energia Elétrica", "CODIGO": "NEOE3"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "NFLX34"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "NVDC34"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "PEPB34"},
-    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PETR4"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "PFIZ34"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "PGCO34"},
-    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PRIO3"},
-    {"SETOR": "Material Rodoviário", "CODIGO": "RAPT4"},
-    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "RECV3"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "S1PO34"},
-    {"SETOR": "ETF – Índice Small Caps", "CODIGO": "SMAL11"},
-    {"SETOR": "Papel e Celulose", "CODIGO": "SUZB3"},
-    {"SETOR": "Material Rodoviário", "CODIGO": "TUPY3"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "TSLA34"},
-    {"SETOR": "Serviços Educacionais", "CODIGO": "VTRU3"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "WALM34"},
-    {"SETOR": "Serviços Educacionais", "CODIGO": "YDUQ3"},
+
+    # Demais
 ]
 
 df_setorial = pd.DataFrame(dados_setoriais)
@@ -516,16 +535,28 @@ if autenticar_usuario():
         st.markdown("---")
     
         # --- LÓGICA DE ORDENAÇÃO DOS SETORES ---
-        # Pega a lista de setores únicos
-        todos_setores = df_setorial['SETOR'].unique().tolist()
-    
-        # Garante que o setor de BDRs fique por último
+        # Ordem de exibição definida pelo usuário
+        ordem_desejada = [
+            "Grupo Simpar",
+            "Serviços Educacionais",
+            "Papel e Celulose",
+            "Energia Elétrica",
+            "Real State",
+            "Material Rodoviário"
+        ]
         setor_bdr = "BDR – Setor internacional"
+        
+        # Pega todos os setores únicos da nossa lista de dados
+        todos_setores = df_setorial['SETOR'].unique().tolist()
+        
+        # Lógica para encontrar setores "esquecidos" e garantir a ordem final
+        setores_nao_ordenados = [s for s in todos_setores if s not in ordem_desejada and s != setor_bdr]
+        setores_nao_ordenados.sort() # Ordena os esquecidos alfabeticamente
+        
+        # Monta a lista final na ordem correta
+        setores_ordenados = ordem_desejada + setores_nao_ordenados
         if setor_bdr in todos_setores:
-            todos_setores.remove(setor_bdr)
-            setores_ordenados = sorted(todos_setores) + [setor_bdr]
-        else:
-            setores_ordenados = sorted(todos_setores)
+            setores_ordenados.append(setor_bdr)
     
         # Loop para criar uma tabela para cada setor, na ordem definida
         for setor in setores_ordenados:
