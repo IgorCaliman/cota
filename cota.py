@@ -112,8 +112,8 @@ FUNDOS = {
     "FD60096402000163": {
         "nome": "MINAS DIVIDENDOS FIA",
         "cota_inicio": 1.0,
-        "data_inicio_str": "07/04/2025", # Data preenchida
-        "data_inicio_api": "2025-04-07"  # Data preenchida
+        "data_inicio_str": "07/04/2025",
+        "data_inicio_api": "2025-04-07"
     },
     "FD52204085000123": {"nome": "MINAS ONE FIA"},
     "FD48992682000192": {"nome": "ALFA HORIZON FIA"},
@@ -520,8 +520,7 @@ if autenticar_usuario():
                     st.write(f"📎 Componentes fixos:     R$ {ex['comp_fixos']:,.2f}")
                     st.write(f"💼 Patrimônio estimado:  R$ {ex['patrimonio']:,.2f}")
                     st.write(f"🧮 Quantidade de cotas:  {ex['qtd_cotas']:,.2f}")
-            
-            # Bloco de análise para o Minas Dividendos
+
             elif cnpj_selecionado == "FD60096402000163":
                 st.divider()
                 st.subheader("Análise de Rentabilidade — MINAS DIVIDENDOS FIA")
@@ -545,7 +544,6 @@ if autenticar_usuario():
                 col2.metric("CDI no Período", f"{cdi_periodo:.2%}")
                 col3.metric("IBOV no Período", f"{ibov_periodo:.2%}")
 
-
     # ============================== ABA DE ACOMPANHAMENTO DE EMPRESAS ============================== #
     with tab_empresas:
         if 'last_update_empresas' not in st.session_state:
@@ -564,8 +562,6 @@ if autenticar_usuario():
         
         st.markdown("---")
 
-
-        # --- LÓGICA DE ORDENAÇÃO DOS SETORES ---
         ordem_desejada = [
             "Grupo Simpar",
             "Serviços Educacionais",
@@ -585,7 +581,6 @@ if autenticar_usuario():
         if setor_bdr in todos_setores:
             setores_ordenados.append(setor_bdr)
     
-        # Loop para criar uma tabela para cada setor, na ordem definida
         for setor in setores_ordenados:
             df_setor_atual = df_setorial[df_setorial['SETOR'] == setor]
             if df_setor_atual.empty:
