@@ -9,10 +9,81 @@ import pandas as pd
 import yfinance as yf
 import xml.etree.ElementTree as ET
 from datetime import timedelta, datetime
+from dateutil.relativedelta import relativedelta
 from zoneinfo import ZoneInfo
 from workalendar.america import Brazil
 
-# ============================== CONFIGURAÇÕES ============================== #
+# ============================== DADOS DE CLASSIFICAÇÃO SETORIAL ==============================
+# Lista fixa e final de empresas e seus setores.
+
+dados_setoriais = [
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "AAPL34"},
+    {"SETOR": "Bancos", "CODIGO": "ABCB4"},
+    {"SETOR": "Exploração de Imóveis", "CODIGO": "ALOS3"},
+    {"SETOR": "Automóveis e Motocicletas", "CODIGO": "AMOB3"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "AMZO34"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "ANIM3"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "BABA34"},
+    {"SETOR": "Bancos", "CODIGO": "BBAS3"},
+    {"SETOR": "Bancos", "CODIGO": "BBDC4"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "BERK34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "BIEV39"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "BOAC34"},
+    {"SETOR": "Bancos", "CODIGO": "BPAC11"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "BRAV3"},
+    {"SETOR": "Bancos", "CODIGO": "BRBI11"},
+    {"SETOR": "Bancos", "CODIGO": "BRSR6"},
+    {"SETOR": "Alimentos Diversos", "CODIGO": "CAML3"},
+    {"SETOR": "Bancos", "CODIGO": "CASH3"},
+    {"SETOR": "Minerais Metálicos", "CODIGO": "CBAV3"},
+    {"SETOR": "Fios e Tecidos", "CODIGO": "CEDO3"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "COGN3"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "COLG34"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "CSAN3"},
+    {"SETOR": "Incorporações", "CODIGO": "EZTC3"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "GOGL34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "GOGL35"},
+    {"SETOR": "Exploração de Imóveis", "CODIGO": "HBSA3"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "INGG34"},
+    {"SETOR": "Holdings Diversificadas", "CODIGO": "ITSA4"},
+    {"SETOR": "Bancos", "CODIGO": "ITUB4"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "JPMC34"},
+    {"SETOR": "Transporte Rodoviário", "CODIGO": "JSLG3"},
+    {"SETOR": "Papel e Celulose", "CODIGO": "KLBN11"},
+    {"SETOR": "Exploração de Imóveis", "CODIGO": "LOGG3"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "M2ST34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "MSTR"},
+    {"SETOR": "Incorporações", "CODIGO": "MELK3"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "M1TA34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "MCDC34"},
+    {"SETOR": "Computadores e Equipamentos", "CODIGO": "MLAS3"},
+    {"SETOR": "Aluguel de carros", "CODIGO": "MOVI3"},
+    {"SETOR": "Automóveis e Motocicletas", "CODIGO": "MYPK3"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "NEOE3"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "NFLX34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "NVDC34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "PEPB34"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PETR4"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "PFIZ34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "PGCO34"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PRIO3"},
+    {"SETOR": "Material Rodoviário", "CODIGO": "RAPT4"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "RECV3"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "S1PO34"},
+    {"SETOR": "Holdings Diversificadas", "CODIGO": "SIMH3"},
+    {"SETOR": "ETF – Índice Small Caps", "CODIGO": "SMAL11"},
+    {"SETOR": "Papel e Celulose", "CODIGO": "SUZB3"},
+    {"SETOR": "Material Rodoviário", "CODIGO": "TUPY3"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "TSLA34"},
+    {"SETOR": "Aluguel de carros", "CODIGO": "VAMO3"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "VTRU3"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "WALM34"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "YDUQ3"},
+]
+
+df_setorial = pd.DataFrame(dados_setoriais)
+
+# ============================== CONFIGURAÇÕES GLOBAIS ============================== #
 TIPO_RELATORIO = 3
 TEMPO_ESPERA = 30
 PASTA_DESTINO = "download_XML"
@@ -34,85 +105,13 @@ FUNDOS = {
 COLUNAS_EXIBIDAS = ["Ticker", "Quantidade de Ações", "Preço Ontem (R$)", "Preço Hoje (R$)", "% no Fundo",
                     "Variação Preço (%)", "Variação Ponderada (%)"]
 
-# ============================== DADOS DE CLASSIFICAÇÃO SETORIAL ==============================
-# Lista fixa e final de empresas e seus setores.
-
-dados_setoriais = [
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "AAPL34"},
-        {"SETOR": "Bancos", "CODIGO": "ABCB4"},
-        {"SETOR": "Exploração de Imóveis", "CODIGO": "ALOS3"},
-        {"SETOR": "Automóveis e Motocicletas", "CODIGO": "AMOB3"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "AMZO34"},
-        {"SETOR": "Serviços Educacionais", "CODIGO": "ANIM3"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "BABA34"},
-        {"SETOR": "Bancos", "CODIGO": "BBAS3"},
-        {"SETOR": "Bancos", "CODIGO": "BBDC4"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "BERK34"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "BIEV39"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "BOAC34"},
-        {"SETOR": "Bancos", "CODIGO": "BPAC11"},
-        {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "BRAV3"},
-        {"SETOR": "Bancos", "CODIGO": "BRBI11"},
-        {"SETOR": "Bancos", "CODIGO": "BRSR6"},
-        {"SETOR": "Alimentos Diversos", "CODIGO": "CAML3"},
-        {"SETOR": "Bancos", "CODIGO": "CASH3"}, # ADICIONADO
-        {"SETOR": "Minerais Metálicos", "CODIGO": "CBAV3"},
-        {"SETOR": "Fios e Tecidos", "CODIGO": "CEDO3"},
-        {"SETOR": "Serviços Educacionais", "CODIGO": "COGN3"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "COLG34"},
-        {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "CSAN3"},
-        {"SETOR": "Incorporações", "CODIGO": "EZTC3"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "GOGL34"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "GOGL35"},
-        {"SETOR": "Exploração de Imóveis", "CODIGO": "HBSA3"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "INGG34"},
-        {"SETOR": "Holdings Diversificadas", "CODIGO": "ITSA4"},
-        {"SETOR": "Bancos", "CODIGO": "ITUB4"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "JPMC34"},
-        {"SETOR": "Transporte Rodoviário", "CODIGO": "JSLG3"},
-        {"SETOR": "Papel e Celulose", "CODIGO": "KLBN11"},
-        {"SETOR": "Exploração de Imóveis", "CODIGO": "LOGG3"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "M2ST34"}, # ADICIONADO
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "MSTR"},   # ADICIONADO
-        {"SETOR": "Incorporações", "CODIGO": "MELK3"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "M1TA34"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "MCDC34"},
-        {"SETOR": "Computadores e Equipamentos", "CODIGO": "MLAS3"},
-        {"SETOR": "Aluguel de carros", "CODIGO": "MOVI3"},
-        {"SETOR": "Automóveis e Motocicletas", "CODIGO": "MYPK3"},
-        {"SETOR": "Energia Elétrica", "CODIGO": "NEOE3"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "NFLX34"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "NVDC34"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "PEPB34"},
-        {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PETR4"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "PFIZ34"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "PGCO34"},
-        {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PRIO3"},
-        {"SETOR": "Material Rodoviário", "CODIGO": "RAPT4"},
-        {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "RECV3"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "S1PO34"},
-        {"SETOR": "Holdings Diversificadas", "CODIGO": "SIMH3"},
-        {"SETOR": "ETF – Índice Small Caps", "CODIGO": "SMAL11"},
-        {"SETOR": "Papel e Celulose", "CODIGO": "SUZB3"},
-        {"SETOR": "Material Rodoviário", "CODIGO": "TUPY3"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "TSLA34"},
-        {"SETOR": "Aluguel de carros", "CODIGO": "VAMO3"},
-        {"SETOR": "Serviços Educacionais", "CODIGO": "VTRU3"},
-        {"SETOR": "BDR – Setor internacional", "CODIGO": "WALM34"},
-        {"SETOR": "Serviços Educacionais", "CODIGO": "YDUQ3"},
-    ]
-    
-    df_setorial = pd.DataFrame(dados_setoriais)
-
-# ===========================================================================================
-
 
 # ============================== FUNÇÕES DE LOGIN ============================== #
 def credenciais_inseridas():
     if "senha_login" not in st.secrets:
         st.error("A chave 'senha_login' não foi encontrada nos segredos do Streamlit.")
         return
-        
+
     usuarios_validos = {
         "admin": st.secrets["senha_login"]
     }
@@ -139,12 +138,6 @@ def autenticar_usuario():
 
 
 # ============================== FUNÇÕES DE PROCESSAMENTO DE DADOS ============================== #
-
-def ultimo_dia_util(delay: int = 1) -> str:
-    cal, d = Brazil(), pd.Timestamp.now(tz="America/Sao_Paulo") - timedelta(days=delay)
-    while not cal.is_working_day(d.date()): d -= timedelta(days=1)
-    return d.strftime("%Y-%m-%d")
-
 @st.cache_data(show_spinner="Obtendo carteiras do dia do BTG (só na 1ª vez)...", ttl=86400)
 def obter_dados_base_do_dia(data_str: str):
     token = gerar_token()
@@ -214,10 +207,6 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl):
                        "patrimonio": patrimonio, "qtd_cotas": qtd_cotas}}
 
 
-## NOVA ADIÇÃO: Função para buscar dados das empresas acompanhadas ##
-# ==============================  COPIE E SUBSTITUA ESTA FUNÇÃO ==============================
-from dateutil.relativedelta import relativedelta # Importe no início do seu script
-
 @st.cache_data(show_spinner="Buscando preços e calculando performance...", ttl=900)
 def buscar_precos_empresas(tickers: list[str]):
     """
@@ -227,14 +216,14 @@ def buscar_precos_empresas(tickers: list[str]):
         # Período de 4 anos para garantir dados para todos os cálculos
         periodo_longo = "4y"
         dados = yf.download(tickers, period=periodo_longo, progress=False, auto_adjust=True)
-        
+
         if dados.empty:
             st.warning("Não foi possível obter dados históricos via yfinance.")
             return pd.DataFrame()
 
         precos_historicos = dados['Close']
         if precos_historicos.empty:
-             return pd.DataFrame()
+            return pd.DataFrame()
 
         # --- Cálculos de Performance ---
         hoje = precos_historicos.index[-1]
@@ -248,12 +237,12 @@ def buscar_precos_empresas(tickers: list[str]):
 
         # Preço final é sempre o mais recente
         preco_final = precos_historicos.iloc[-1]
-        
+
         variacoes = {}
         for nome, data_inicio in datas_inicio.items():
             # Encontra o índice da primeira data de pregão >= à data de início calculada
             idx_inicio = precos_historicos.index.searchsorted(data_inicio)
-            
+
             # Garante que o índice não está fora dos limites
             if idx_inicio < len(precos_historicos):
                 preco_inicial = precos_historicos.iloc[idx_inicio]
@@ -262,7 +251,7 @@ def buscar_precos_empresas(tickers: list[str]):
             else:
                 # Se não houver dados para o período, preenche com zero ou NaN
                 variacoes[nome] = pd.Series(0, index=precos_historicos.columns)
-        
+
         df_variacoes = pd.DataFrame(variacoes)
 
         # --- Cálculo da Volatilidade ---
@@ -280,12 +269,12 @@ def buscar_precos_empresas(tickers: list[str]):
             'Variação (%)': (preco_hoje / preco_ontem) - 1,
             'Volatilidade (60d)': volatilidade_60d
         })
-        
+
         # Junta os dataframes de resultado e de variações pelo índice (ticker)
         df_resultado = df_resultado.join(df_variacoes)
         df_resultado.reset_index(inplace=True)
         df_resultado.rename(columns={'index': 'Ticker'}, inplace=True)
-        
+
         return df_resultado
 
     except Exception as e:
@@ -293,9 +282,7 @@ def buscar_precos_empresas(tickers: list[str]):
         return pd.DataFrame()
 
 
-
 # ============================== FUNÇÕES AUXILIARES ============================== #
-
 def ultimo_dia_util(delay: int = 1) -> str:
     cal, d = Brazil(), pd.Timestamp.now(tz="America/Sao_Paulo") - timedelta(days=delay)
     while not cal.is_working_day(d.date()): d -= timedelta(days=1)
@@ -310,7 +297,7 @@ def gerar_token():
     try:
         resp = requests.post("https://funds.btgpactual.com/connect/token",
                              headers={"Content-Type": "application/x-www-form-urlencoded"},
-                             data= st.secrets["senha_af"])
+                             data=st.secrets["senha_af"])
         resp.raise_for_status()
         return resp.json()["access_token"]
     except requests.RequestException as e:
@@ -375,7 +362,6 @@ if autenticar_usuario():
     st.caption(f"Posição dos fundos referente ao dia: {data_formatada}")
     st.write(f"Usuário: **{st.session_state.get('username', '').capitalize()}**")
 
-    ## ALTERAÇÃO: Introdução do st.tabs para criar a navegação ##
     tab_fundos, tab_empresas = st.tabs(["📊 Análise de Fundos", "📈 Acompanhamento de Empresas"])
 
     # ============================== ABA DE ANÁLISE DE FUNDOS ============================== #
@@ -388,31 +374,32 @@ if autenticar_usuario():
         if not dados_base_do_dia:
             st.error(
                 "Não foi possível obter os dados da carteira do BTG. Verifique os CNPJs ou a disponibilidade no portal.")
-            
+
             if st.button("🔄 Tentar buscar dados do BTG novamente"):
                 st.cache_data.clear()
                 st.rerun()
         else:
             ordem_especifica = [
-                CNPJ_MINAS_FIA,      # MINAS FIA
-                "FD60096402000163",  # MINAS DIVIDENDOS FIA
-                "FD52204085000123",  # MINAS ONE FIA
-                "FD48992682000192"   # ALFA HORIZON FIA
+                CNPJ_MINAS_FIA,
+                "FD60096402000163",
+                "FD52204085000123",
+                "FD48992682000192"
             ]
             opcoes_ordenadas = [cnpj for cnpj in ordem_especifica if cnpj in dados_base_do_dia]
             nomes_fundos = {cnpj: FUNDOS[cnpj]["nome"] for cnpj in opcoes_ordenadas}
-            
+
             summary_container = st.container()
-            
+
             cnpj_selecionado = st.selectbox("Selecione o fundo para visualizar:", options=opcoes_ordenadas,
-                                              format_func=lambda c: nomes_fundos.get(c, "Nome não encontrado"), key="fundo_selectbox")
+                                            format_func=lambda c: nomes_fundos.get(c, "Nome não encontrado"),
+                                            key="fundo_selectbox")
 
             col_header, col_actions = st.columns([3, 2])
             with col_header:
                 st.subheader(f"📊 Detalhes do Fundo — {FUNDOS[cnpj_selecionado]['nome']}")
             with col_actions:
                 btn1, btn2 = st.columns(2)
-                
+
                 with btn1:
                     atualizar = st.button("🔄 Atualizar Preços dos Fundos")
                     if st.session_state.global_last_update_time:
@@ -429,10 +416,11 @@ if autenticar_usuario():
             if atualizar or is_cache_incomplete:
                 with st.spinner("Atualizando os preços de todos os fundos..."):
                     for cnpj, dados_base_fundo in dados_base_do_dia.items():
-                        resultados = recalcular_metricas(dados_base_fundo["df_base"], dados_base_fundo["cota_ontem"],
+                        resultados = recalcular_metricas(dados_base_fundo["df_base"],
+                                                          dados_base_fundo["cota_ontem"],
                                                           dados_base_fundo["qtd_cotas"], dados_base_fundo["pl"])
                         st.session_state.dados_calculados_cache[cnpj] = resultados
-                
+
                 st.session_state.global_last_update_time = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
                 st.rerun()
 
@@ -445,26 +433,28 @@ if autenticar_usuario():
                             fund_name = FUNDOS[cnpj]["nome"]
                             variation = st.session_state.dados_calculados_cache[cnpj]['var_cota']
                             summary_data.append({"Fundo": fund_name, "Variação da Cota": variation})
-                    
+
                     if summary_data:
                         summary_df = pd.DataFrame(summary_data)
 
                         def style_variation(v):
                             color = 'green' if v > 0 else 'red' if v < 0 else 'darkgray'
                             return f'color: {color}'
-                        
+
                         st.dataframe(
-                            summary_df.style.map(style_variation, subset=['Variação da Cota']).format({"Variação da Cota": "{:.4%}"}),
+                            summary_df.style.map(style_variation, subset=['Variação da Cota']).format(
+                                {"Variação da Cota": "{:.4%}"}),
                             use_container_width=True,
                             hide_index=True
                         )
                     st.divider()
 
                 dados_calculados, cota_ontem_base = st.session_state.dados_calculados_cache[cnpj_selecionado], \
-                dados_base_do_dia[cnpj_selecionado]['cota_ontem']
+                    dados_base_do_dia[cnpj_selecionado]['cota_ontem']
                 df_final = dados_calculados["df"]
 
-                fmt = {"Quantidade de Ações": "{:,.0f}", "Preço Ontem (R$)": "R$ {:.2f}", "Preço Hoje (R$)": "R$ {:.2f}",
+                fmt = {"Quantidade de Ações": "{:,.0f}", "Preço Ontem (R$)": "R$ {:.2f}",
+                       "Preço Hoje (R$)": "R$ {:.2f}",
                        "% no Fundo": "{:.2%}", "Variação Preço (%)": "{:.2%}", "Variação Ponderada (%)": "{:.2%}"}
                 st.dataframe(
                     df_final[COLUNAS_EXIBIDAS].sort_values("% no Fundo", ascending=False).style.format(fmt).map(css_var,
@@ -483,8 +473,10 @@ if autenticar_usuario():
                     cota_hoje = dados_calculados['cota_hoje']
                     ref_minas_fia = FUNDOS[CNPJ_MINAS_FIA]
                     rent_ytd = (cota_hoje / ref_minas_fia['cota_ytd'] - 1) if ref_minas_fia['cota_ytd'] > 0 else 0
-                    rent_inicio = (cota_hoje / ref_minas_fia['cota_inicio'] - 1) if ref_minas_fia['cota_inicio'] > 0 else 0
-                    hoje_str, hoje_dt = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y'), datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%Y-%m-%d')
+                    rent_inicio = (cota_hoje / ref_minas_fia['cota_inicio'] - 1) if ref_minas_fia[
+                                                                                       'cota_inicio'] > 0 else 0
+                    hoje_str, hoje_dt = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime(
+                        '%d/%m/%Y'), datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%Y-%m-%d')
                     cdi_acumulado = get_cdi_acumulado(data_inicio="15/10/2020", data_fim=hoje_str)
                     ibov_acumulado_inicio = get_ibov_acumulado(data_inicio="2020-10-15", data_fim=hoje_dt)
                     percentual_cdi = rent_inicio - cdi_acumulado
@@ -508,8 +500,9 @@ if autenticar_usuario():
 
                     texto_relativo_cdi = "acima do CDI" if percentual_cdi >= 0 else "abaixo do CDI"
                     valor_display_cdi = f"{abs(percentual_cdi):.2%} {texto_relativo_cdi}"
-                    
-                    st.metric("Performance vs CDI (desde 15/10/2020)", valor_display_cdi, delta=f"{percentual_cdi:.2%}", delta_color="off")
+
+                    st.metric("Performance vs CDI (desde 15/10/2020)", valor_display_cdi,
+                              delta=f"{percentual_cdi:.2%}", delta_color="off")
 
                 with st.expander("🔍 Parâmetros do Cálculo"):
                     ex = dados_calculados["extras"]
@@ -518,78 +511,58 @@ if autenticar_usuario():
                     st.write(f"📎 Componentes fixos:     R$ {ex['comp_fixos']:,.2f}")
                     st.write(f"💼 Patrimônio estimado:  R$ {ex['patrimonio']:,.2f}")
                     st.write(f"🧮 Quantidade de cotas:  {ex['qtd_cotas']:,.2f}")
-
-   # ==============================  COPIE E SUBSTITUA ESTE BLOCO ==============================
-
+    
+    # ============================== ABA DE ACOMPANHAMENTO DE EMPRESAS ============================== #
     with tab_empresas:
-        st.subheader("Acompanhamento da Variação de Empresas")
+        st.subheader("Análise de Performance por Setor")
+        st.markdown("---")
     
-        if 'last_update_empresas' not in st.session_state:
-            st.session_state.last_update_empresas = None
+        # 1. Pega a lista de setores únicos diretamente do DataFrame que criamos acima
+        setores_unicos = df_setorial['SETOR'].unique().tolist()
     
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button("🔄 Atualizar Preços", key="update_empresas"):
-                buscar_precos_empresas.clear()
-                st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
-                st.rerun()
+        # 2. Loop para criar uma tabela para cada setor da nossa lista fixa
+        for setor in setores_unicos:
+            st.subheader(f"Setor: {setor}")
     
-        with col2:
-            if st.session_state.last_update_empresas:
-                st.caption(f"Última atualização: **{st.session_state.last_update_empresas.strftime('%d/%m/%Y às %H:%M:%S')}**")
-            else:
-                 st.caption("Clique em 'Atualizar Preços' para carregar os dados.")
+            # Pega os tickers apenas para o setor atual
+            df_setor_atual = df_setorial[df_setorial['SETOR'] == setor]
+            tickers_do_setor = df_setor_atual['CODIGO'].tolist()
+            tickers_para_api = [ticker + '.SA' for ticker in tickers_do_setor]
     
-        df_empresas = buscar_precos_empresas(EMPRESAS_ACOMPANHADAS)
+            # Busca os dados de performance para os tickers do setor
+            df_performance = buscar_precos_empresas(tickers_para_api)
     
-        if df_empresas is not None and not df_empresas.empty and st.session_state.last_update_empresas is None:
-            st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
-            st.rerun()
+            if not df_performance.empty:
+                df_display = df_performance.copy()
+                df_display['Ticker'] = df_display['Ticker'].str.replace(".SA", "", regex=False)
+                df_display.rename(columns={
+                    'Variação (%)': 'Var. Dia', 'Volatilidade (60d)': 'Vol (60d)',
+                    '1M': 'Var. 1M', '6M': 'Var. 6M', '1A': 'Var. 1A', '3A': 'Var. 3A'
+                }, inplace=True)
     
-        if not df_empresas.empty:
-            df_empresas_display = df_empresas.copy()
-            df_empresas_display['Ticker'] = df_empresas_display['Ticker'].str.replace(".SA", "", regex=False)
+                formatos = {
+                    "Preço Hoje (R$)": "R$ {:.2f}", "Var. Dia": "{:.2%}", "Vol (60d)": "{:.2%}",
+                    "Var. 1M": "{:.2%}", "Var. 6M": "{:.2%}", "YTD": "{:.2%}", "Var. 1A": "{:.2%}", "Var. 3A": "{:.2%}"
+                }
+                colunas_para_remover = ['Preço Ontem (R$)']
+                colunas_para_colorir = ['Var. Dia', 'Var. 1M', 'Var. 6M', 'YTD', 'Var. 1A', 'Var. 3A']
     
-            # Renomeia colunas para melhor visualização na tabela
-            df_empresas_display.rename(columns={
-                'Variação (%)': 'Var. Dia',
-                'Volatilidade (60d)': 'Vol (60d)',
-                '1M': 'Var. 1M',
-                '6M': 'Var. 6M',
-                '1A': 'Var. 1A',
-                '3A': 'Var. 3A'
-            }, inplace=True)
+                for col in colunas_para_remover:
+                    if col in df_display.columns:
+                        del df_display[col]
     
-            st.caption("A 'Vol (60d)' é o desvio padrão dos retornos diários nos últimos 60 pregões.")
-            
-            # Adiciona formatação para as novas colunas
-            formatos_empresas = {
-                "Preço Ontem (R$)": "R$ {:.2f}",
-                "Preço Hoje (R$)": "R$ {:.2f}",
-                "Var. Dia": "{:.2%}",
-                "Vol (60d)": "{:.2%}",
-                "Var. 1M": "{:.2%}",
-                "Var. 6M": "{:.2%}",
-                "YTD": "{:.2%}",
-                "Var. 1A": "{:.2%}",
-                "Var. 3A": "{:.2%}"
-            }
+                def estilo_variacao_empresa(v):
+                    if isinstance(v, (int, float)):
+                        cor = 'green' if v > 0 else 'red' if v < 0 else 'darkgray'
+                        return f'color: {cor}'
+                    return ''
     
-            def estilo_variacao_empresa(v):
-                if isinstance(v, (int, float)):
-                    cor = 'green' if v > 0 else 'red' if v < 0 else 'darkgray'
-                    return f'color: {cor}'
-                return ''
+                styler = df_display.style
+                for col in colunas_para_colorir:
+                    if col in df_display.columns:
+                        styler = styler.applymap(estilo_variacao_empresa, subset=[col])
+                styler = styler.format(formatos)
     
-            # Colunas a serem coloridas
-            colunas_para_colorir = ['Var. Dia', 'Var. 1M', 'Var. 6M', 'YTD', 'Var. 1A', 'Var. 3A']
-            
-            styler = df_empresas_display.style
-            for col in colunas_para_colorir:
-                styler = styler.applymap(estilo_variacao_empresa, subset=[col])
-            
-            styler = styler.format(formatos_empresas)
+                st.dataframe(styler, use_container_width=True, hide_index=True)
     
-            st.dataframe(styler, use_container_width=True, hide_index=True)
-        else:
-            st.info("Aguardando dados das empresas. Clique no botão de atualização se necessário.")
+            st.markdown("---")  # Divisor entre os setores
