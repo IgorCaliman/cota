@@ -73,6 +73,12 @@ def autenticar_usuario():
 
 
 # ============================== FUNÇÕES DE PROCESSAMENTO DE DADOS ============================== #
+
+def ultimo_dia_util(delay: int = 1) -> str:
+    cal, d = Brazil(), pd.Timestamp.now(tz="America/Sao_Paulo") - timedelta(days=delay)
+    while not cal.is_working_day(d.date()): d -= timedelta(days=1)
+    return d.strftime("%Y-%m-%d")
+
 @st.cache_data(show_spinner="Obtendo carteiras do dia do BTG (só na 1ª vez)...", ttl=86400)
 def obter_dados_base_do_dia(data_str: str):
     token = gerar_token()
