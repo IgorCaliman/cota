@@ -143,50 +143,59 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl):
 
 
 ## NOVA ADIÇÃO: Função para buscar dados das empresas acompanhadas ##
+# ==============================  COPIE E SUBSTITUA ESTA FUNÇÃO ==============================
+
 @st.cache_data(show_spinner="Buscando preços das empresas...", ttl=900) # Cache de 15 minutos (900s)
 def buscar_precos_empresas(tickers: list[str]):
     """
-    Busca os dados de fechamento de D-1 e o preço atual para uma lista de tickers.
+    Busca os dados de fechamento de D-1 e o preço atual para uma lista de tickers
+    de forma robusta, garantindo o alinhamento dos dados.
     """
     try:
-        # Puxa os dados dos últimos 2 dias para garantir que temos o fechamento anterior
+        # Puxa os dados dos últimos 2 dias. auto_adjust=True ajusta para splits/dividendos.
         dados = yf.download(tickers, period="2d", progress=False, auto_adjust=True)
+        
         if dados.empty:
-            st.warning("Não foi possível obter os dados de preços das empresas.")
+            st.warning("Não foi possível obter os dados de preços das empresas via yfinance.")
             return pd.DataFrame()
 
-        # Isolar os preços de fechamento
-        precos = dados['Close']
-        
-        # Se houver apenas uma linha (mercado ainda não abriu hoje, por exemplo)
-        if len(precos) < 2:
-            preco_ontem = precos.iloc[0]
-            preco_hoje = preco_ontem # Assume o mesmo preço se não houver dados de hoje
-        else:
-            preco_ontem = precos.iloc[-2]
-            preco_hoje = precos.iloc[-1]
-            
-        # Pega o preço mais recente para cada ticker
-        precos_atuais_info = [yf.Ticker(t).info.get('regularMarketPrice') for t in tickers]
+        # Isolar apenas os preços de fechamento ('Close'). 
+        # O resultado é um DataFrame com datas no índice e tickers nas colunas.
+        precos_df = dados['Close']
 
+        # Se tivermos menos de 2 dias de dados (ex: uma segunda-feira de manhã),
+        # tratamos para não dar erro.
+        if len(precos_df) < 2:
+            st.warning("Dados de apenas um dia disponíveis. Usando o mesmo valor para 'Ontem' e 'Hoje'.")
+            preco_ontem = precos_df.iloc[0]
+            preco_hoje = precos_df.iloc[0]
+        else:
+            preco_ontem = precos_df.iloc[-2] # Preços de D-2 (fechamento de ontem)
+            preco_hoje = precos_df.iloc[-1]  # Preços de D-1 (fechamento mais recente)
+
+        # Criar o DataFrame final a partir das séries de preços.
+        # O Pandas alinha automaticamente os dados pelo índice (que são os tickers).
         df_resultado = pd.DataFrame({
-            'Ticker': tickers,
-            'Preço Ontem (R$)': preco_ontem.values,
-            'Preço Hoje (R$)': precos_atuais_info
+            'Preço Ontem (R$)': preco_ontem,
+            'Preço Hoje (R$)': preco_hoje
         })
-        
-        # Substitui None por um valor válido para o cálculo
-        df_resultado['Preço Hoje (R$)'] = pd.to_numeric(df_resultado['Preço Hoje (R$)'], errors='coerce')
-        df_resultado.fillna({'Preço Hoje (R$)': df_resultado['Preço Ontem (R$)']}, inplace=True)
-        
+
+        # Remove qualquer linha que tenha valores nulos (caso um ticker tenha falhado)
+        df_resultado.dropna(inplace=True)
+
+        # Calcula a variação
         df_resultado['Variação (%)'] = (df_resultado['Preço Hoje (R$)'] / df_resultado['Preço Ontem (R$)']) - 1
+
+        # Transforma o índice (os tickers) em uma coluna e renomeia
+        df_resultado.reset_index(inplace=True)
+        df_resultado.rename(columns={'index': 'Ticker'}, inplace=True)
         
-        return df_resultado
+        # Reordena as colunas para a exibição final
+        return df_resultado[['Ticker', 'Preço Ontem (R$)', 'Preço Hoje (R$)', 'Variação (%)']]
 
     except Exception as e:
-        st.error(f"Erro ao buscar preços no yfinance: {e}")
+        st.error(f"Ocorreu um erro ao buscar os preços no yfinance: {e}")
         return pd.DataFrame()
-
 
 # ============================== FUNÇÕES AUXILIARES ============================== #
 def ultimo_dia_util(delay: int = 1) -> str:
