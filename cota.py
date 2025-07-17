@@ -23,31 +23,14 @@ dados_setoriais = [
     {"SETOR": "Grupo Simpar", "CODIGO": "JSLG3"},
     {"SETOR": "Grupo Simpar", "CODIGO": "SIMH3"},
     {"SETOR": "Grupo Simpar", "CODIGO": "AMOB3"},
-
-    # Educação
-    {"SETOR": "Serviços Educacionais", "CODIGO": "ANIM3"},
-    {"SETOR": "Serviços Educacionais", "CODIGO": "COGN3"},
-    {"SETOR": "Serviços Educacionais", "CODIGO": "VTRU3"},
-    {"SETOR": "Serviços Educacionais", "CODIGO": "YDUQ3"},
     
     # Energia Elétrica
     {"SETOR": "Energia Elétrica", "CODIGO": "NEOE3"},
     {"SETOR": "Energia Elétrica", "CODIGO": "ALUP11"},
     {"SETOR": "Energia Elétrica", "CODIGO": "ELET3"},
     {"SETOR": "Energia Elétrica", "CODIGO": "ENGI11"},
-    {"SETOR": "Energia Elétrica", "CODIGO": "CMIG3"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "CMIG4"},
     {"SETOR": "Energia Elétrica", "CODIGO": "CPLE6"},
-
-    # Oil and Gas
-    {"SETOR": "Oil & Gas", "CODIGO": "BRAV3"},
-    {"SETOR": "Oil & Gas", "CODIGO": "CSAN3"},
-    {"SETOR": "Oil & Gas", "CODIGO": "PETR4"},
-    {"SETOR": "Oil & Gas", "CODIGO": "PRIO3"},
-    {"SETOR": "Oil & Gas", "CODIGO": "RECV3"},
-
-    # Celulose
-    {"SETOR": "Papel e Celulose", "CODIGO": "KLBN11"},
-    {"SETOR": "Papel e Celulose", "CODIGO": "SUZB3"},
 
     # Real State (antigo Exploração de Imóveis e Incorporações)
     {"SETOR": "Real State", "CODIGO": "ALOS3"},
@@ -94,8 +77,19 @@ dados_setoriais = [
     {"SETOR": "BDR – Setor internacional", "CODIGO": "S1PO34"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "TSLA34"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "WALM34"},
-    {"SETOR": "BDR – Setor internacional", "CODIGO": "AIRB34"},
 
+    # Demais
+    {"SETOR": "Serviços Educacionais", "CODIGO": "ANIM3"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "COGN3"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "VTRU3"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "YDUQ3"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "BRAV3"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "CSAN3"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PETR4"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PRIO3"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "RECV3"},
+    {"SETOR": "Papel e Celulose", "CODIGO": "KLBN11"},
+    {"SETOR": "Papel e Celulose", "CODIGO": "SUZB3"},
 ]
 
 df_setorial = pd.DataFrame(dados_setoriais)
@@ -115,7 +109,12 @@ FUNDOS = {
         "cota_ytd": 1.8726972,
         "marca_dagua": 3.0196718,
     },
-    "FD60096402000163": {"nome": "MINAS DIVIDENDOS FIA"},
+    "FD60096402000163": {
+        "nome": "MINAS DIVIDENDOS FIA",
+        "cota_inicio": 1.0,
+        "data_inicio_str": "07/04/2025", # Data preenchida
+        "data_inicio_api": "2025-04-07"  # Data preenchida
+    },
     "FD52204085000123": {"nome": "MINAS ONE FIA"},
     "FD48992682000192": {"nome": "ALFA HORIZON FIA"},
 }
@@ -235,7 +234,6 @@ def buscar_precos_empresas(tickers: list[str]):
         dados = yf.download(tickers, period=periodo_longo, progress=False, auto_adjust=True)
 
         if dados.empty:
-            # st.warning("Não foi possível obter dados históricos via yfinance.")
             return pd.DataFrame()
 
         precos_historicos = dados['Close']
@@ -257,16 +255,12 @@ def buscar_precos_empresas(tickers: list[str]):
 
         variacoes = {}
         for nome, data_inicio in datas_inicio.items():
-            # Encontra o índice da primeira data de pregão >= à data de início calculada
             idx_inicio = precos_historicos.index.searchsorted(data_inicio)
 
-            # Garante que o índice não está fora dos limites
             if idx_inicio < len(precos_historicos):
                 preco_inicial = precos_historicos.iloc[idx_inicio]
-                # Cálculo vetorizado para todas as ações de uma vez
                 variacoes[nome] = (preco_final / preco_inicial) - 1
             else:
-                # Se não houver dados para o período, preenche com zero ou NaN
                 variacoes[nome] = pd.Series(0, index=precos_historicos.columns)
 
         df_variacoes = pd.DataFrame(variacoes)
@@ -287,7 +281,6 @@ def buscar_precos_empresas(tickers: list[str]):
             'Volatilidade (60d)': volatilidade_60d
         })
 
-        # Junta os dataframes de resultado e de variações pelo índice (ticker)
         df_resultado = df_resultado.join(df_variacoes)
         df_resultado.reset_index(inplace=True)
         df_resultado.rename(columns={'index': 'Ticker'}, inplace=True)
@@ -295,7 +288,6 @@ def buscar_precos_empresas(tickers: list[str]):
         return df_resultado
 
     except Exception as e:
-        # st.error(f"Ocorreu um erro ao buscar os preços no yfinance: {e}")
         return pd.DataFrame()
 
 
@@ -528,94 +520,115 @@ if autenticar_usuario():
                     st.write(f"📎 Componentes fixos:     R$ {ex['comp_fixos']:,.2f}")
                     st.write(f"💼 Patrimônio estimado:  R$ {ex['patrimonio']:,.2f}")
                     st.write(f"🧮 Quantidade de cotas:  {ex['qtd_cotas']:,.2f}")
+            
+            # Bloco de análise para o Minas Dividendos
+            elif cnpj_selecionado == "FD60096402000163":
+                st.divider()
+                st.subheader("Análise de Rentabilidade — MINAS DIVIDENDOS FIA")
+                
+                cota_hoje = dados_calculados['cota_hoje']
+                ref_div = FUNDOS["FD60096402000163"]
+                
+                data_inicio_str_div = ref_div['data_inicio_str']
+                data_inicio_api_div = ref_div['data_inicio_api']
+
+                rent_inicio_div = (cota_hoje / ref_div['cota_inicio'] - 1) if ref_div['cota_inicio'] > 0 else 0
+                
+                hoje_str = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y')
+                hoje_dt = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%Y-%m-%d')
+                
+                cdi_periodo = get_cdi_acumulado(data_inicio=data_inicio_str_div, data_fim=hoje_str)
+                ibov_periodo = get_ibov_acumulado(data_inicio=data_inicio_api_div, data_fim=hoje_dt)
+
+                col1, col2, col3 = st.columns(3)
+                col1.metric(f"Rent. Início ({data_inicio_str_div})", f"{rent_inicio_div:.2%}")
+                col2.metric("CDI no Período", f"{cdi_periodo:.2%}")
+                col3.metric("IBOV no Período", f"{ibov_periodo:.2%}")
+
 
     # ============================== ABA DE ACOMPANHAMENTO DE EMPRESAS ============================== #
-    # ============================== ABA DE ACOMPANHAMENTO DE EMPRESAS ============================== #
-        with tab_empresas:
-            # Bloco de atualização movido para o topo
-            if 'last_update_empresas' not in st.session_state:
-                st.session_state.last_update_empresas = None
+    with tab_empresas:
+        if 'last_update_empresas' not in st.session_state:
+            st.session_state.last_update_empresas = None
+
+        col_btn, col_time = st.columns([1, 4])
+        with col_btn:
+            if st.button("🔄 Atualizar Preços", key="update_empresas"):
+                buscar_precos_empresas.clear()
+                st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
+                st.rerun()
+
+        with col_time:
+            if st.session_state.last_update_empresas:
+                st.caption(f"Última atualização: **{st.session_state.last_update_empresas.strftime('%d/%m/%Y às %H:%M:%S')}**")
+        
+        st.markdown("---")
+
+
+        # --- LÓGICA DE ORDENAÇÃO DOS SETORES ---
+        ordem_desejada = [
+            "Grupo Simpar",
+            "Serviços Educacionais",
+            "Papel e Celulose",
+            "Energia Elétrica",
+            "Real State",
+            "Material Rodoviário"
+        ]
+        setor_bdr = "BDR – Setor internacional"
+        
+        todos_setores = df_setorial['SETOR'].unique().tolist()
+        
+        setores_nao_ordenados = [s for s in todos_setores if s not in ordem_desejada and s != setor_bdr]
+        setores_nao_ordenados.sort()
+        
+        setores_ordenados = ordem_desejada + setores_nao_ordenados
+        if setor_bdr in todos_setores:
+            setores_ordenados.append(setor_bdr)
     
-            col_btn, col_time = st.columns([1, 4])
-            with col_btn:
-                if st.button("🔄 Atualizar Preços", key="update_empresas"):
-                    # Limpa o cache da função específica para forçar a atualização
-                    buscar_precos_empresas.clear() 
-                    st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
-                    st.rerun()
+        # Loop para criar uma tabela para cada setor, na ordem definida
+        for setor in setores_ordenados:
+            df_setor_atual = df_setorial[df_setorial['SETOR'] == setor]
+            if df_setor_atual.empty:
+                continue 
+
+            st.subheader(f"Setor: {setor}")
     
-            with col_time:
-                if st.session_state.last_update_empresas:
-                    st.caption(f"Última atualização: **{st.session_state.last_update_empresas.strftime('%d/%m/%Y às %H:%M:%S')}**")
+            tickers_do_setor = df_setor_atual['CODIGO'].tolist()
+            tickers_para_api = [ticker + '.SA' for ticker in tickers_do_setor]
     
-            # --- LÓGICA DE ORDENAÇÃO E EXIBIÇÃO DOS SETORES ---
-            # Ordem de exibição definida pelo usuário
-            ordem_desejada = [
-                "Grupo Simpar",
-                "Serviços Educacionais",
-                "Papel e Celulose",
-                "Energia Elétrica",
-                "Real State",
-                "Material Rodoviário"
-            ]
-            setor_bdr = "BDR – Setor internacional"
-            
-            # Pega todos os setores únicos da nossa lista de dados
-            todos_setores = df_setorial['SETOR'].unique().tolist()
-            
-            # Lógica para encontrar setores "esquecidos" e garantir a ordem final
-            setores_nao_ordenados = [s for s in todos_setores if s not in ordem_desejada and s != setor_bdr]
-            setores_nao_ordenados.sort() # Ordena os esquecidos alfabeticamente
-            
-            # Monta a lista final na ordem correta
-            setores_ordenados = ordem_desejada + setores_nao_ordenados
-            if setor_bdr in todos_setores:
-                setores_ordenados.append(setor_bdr)
-        
-            # Loop para criar uma tabela para cada setor, na ordem definida
-            for setor in setores_ordenados:
-                df_setor_atual = df_setorial[df_setorial['SETOR'] == setor]
-                if df_setor_atual.empty:
-                    continue 
+            df_performance = buscar_precos_empresas(tickers_para_api)
     
-                st.subheader(f"Setor: {setor}")
-        
-                tickers_do_setor = df_setor_atual['CODIGO'].tolist()
-                tickers_para_api = [ticker + '.SA' for ticker in tickers_do_setor]
-        
-                df_performance = buscar_precos_empresas(tickers_para_api)
-        
-                if not df_performance.empty:
-                    df_display = df_performance.copy()
-                    df_display['Ticker'] = df_display['Ticker'].str.replace(".SA", "", regex=False)
-                    df_display.rename(columns={
-                        'Variação (%)': 'Var. Dia', 'Volatilidade (60d)': 'Vol (60d)',
-                        '1M': 'Var. 1M', '6M': 'Var. 6M', '1A': 'Var. 1A', '3A': 'Var. 3A'
-                    }, inplace=True)
-        
-                    formatos = {
-                        "Preço Hoje (R$)": "R$ {:.2f}", "Var. Dia": "{:.2%}", "Vol (60d)": "{:.2%}",
-                        "Var. 1M": "{:.2%}", "Var. 6M": "{:.2%}", "YTD": "{:.2%}", "Var. 1A": "{:.2%}", "Var. 3A": "{:.2%}"
-                    }
-                    colunas_para_remover = ['Preço Ontem (R$)']
-                    colunas_para_colorir = ['Var. Dia', 'Var. 1M', 'Var. 6M', 'YTD', 'Var. 1A', 'Var. 3A']
-        
-                    for col in colunas_para_remover:
-                        if col in df_display.columns:
-                            del df_display[col]
-        
-                    def estilo_variacao_empresa(v):
-                        if isinstance(v, (int, float)):
-                            cor = 'green' if v > 0 else 'red' if v < 0 else 'darkgray'
-                            return f'color: {cor}'
-                        return ''
-        
-                    styler = df_display.style
-                    for col in colunas_para_colorir:
-                        if col in df_display.columns:
-                            styler = styler.applymap(estilo_variacao_empresa, subset=[col])
-                    styler = styler.format(formatos)
-        
-                    st.dataframe(styler, use_container_width=True, hide_index=True)
-        
-                st.markdown("---")
+            if not df_performance.empty:
+                df_display = df_performance.copy()
+                df_display['Ticker'] = df_display['Ticker'].str.replace(".SA", "", regex=False)
+                df_display.rename(columns={
+                    'Variação (%)': 'Var. Dia', 'Volatilidade (60d)': 'Vol (60d)',
+                    '1M': 'Var. 1M', '6M': 'Var. 6M', '1A': 'Var. 1A', '3A': 'Var. 3A'
+                }, inplace=True)
+    
+                formatos = {
+                    "Preço Hoje (R$)": "R$ {:.2f}", "Var. Dia": "{:.2%}", "Vol (60d)": "{:.2%}",
+                    "Var. 1M": "{:.2%}", "Var. 6M": "{:.2%}", "YTD": "{:.2%}", "Var. 1A": "{:.2%}", "Var. 3A": "{:.2%}"
+                }
+                colunas_para_remover = ['Preço Ontem (R$)']
+                colunas_para_colorir = ['Var. Dia', 'Var. 1M', 'Var. 6M', 'YTD', 'Var. 1A', 'Var. 3A']
+    
+                for col in colunas_para_remover:
+                    if col in df_display.columns:
+                        del df_display[col]
+    
+                def estilo_variacao_empresa(v):
+                    if isinstance(v, (int, float)):
+                        cor = 'green' if v > 0 else 'red' if v < 0 else 'darkgray'
+                        return f'color: {cor}'
+                    return ''
+    
+                styler = df_display.style
+                for col in colunas_para_colorir:
+                    if col in df_display.columns:
+                        styler = styler.applymap(estilo_variacao_empresa, subset=[col])
+                styler = styler.format(formatos)
+    
+                st.dataframe(styler, use_container_width=True, hide_index=True)
+    
+            st.markdown("---")
