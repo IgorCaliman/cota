@@ -12,6 +12,35 @@ from datetime import timedelta, datetime
 from zoneinfo import ZoneInfo
 from workalendar.america import Brazil
 
+# ============================== CONFIGURAÇÕES ============================== #
+TIPO_RELATORIO = 3
+TEMPO_ESPERA = 30
+PASTA_DESTINO = "download_XML"
+CNPJ_MINAS_FIA = "FD11209172000196"
+DATA_MARCA_DAGUA_STR = "02/01/2024"
+DATA_MARCA_DAGUA_API = "2024-01-02"
+
+FUNDOS = {
+    CNPJ_MINAS_FIA: {
+        "nome": "MINAS FIA",
+        "cota_inicio": 1.9477472,
+        "cota_ytd": 1.8726972,
+        "marca_dagua": 3.0196718,
+    },
+    "FD60096402000163": {"nome": "MINAS DIVIDENDOS FIA"},
+    "FD52204085000123": {"nome": "MINAS ONE FIA"},
+    "FD48992682000192": {"nome": "ALFA HORIZON FIA"},
+}
+COLUNAS_EXIBIDAS = ["Ticker", "Quantidade de Ações", "Preço Ontem (R$)", "Preço Hoje (R$)", "% no Fundo",
+                    "Variação Preço (%)", "Variação Ponderada (%)"]
+
+## NOVA ADIÇÃO: Lista de empresas para acompanhar na nova aba ##
+EMPRESAS_ACOMPANHADAS = [
+    'PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA', 
+    'ABEV3.SA', 'WEGE3.SA', 'MGLU3.SA', 'LREN3.SA'
+]
+
+
 # ============================== FUNÇÕES DE LOGIN ============================== #
 def credenciais_inseridas():
     if "senha_login" not in st.secrets:
@@ -41,29 +70,6 @@ def autenticar_usuario():
     st.text_input(label="Senha", type="password", key="password_input")
     if st.button("Entrar"): credenciais_inseridas(); st.rerun()
     return False
-
-
-# ============================== CONFIGURAÇÕES ============================== #
-TIPO_RELATORIO = 3
-TEMPO_ESPERA = 30
-PASTA_DESTINO = "download_XML"
-CNPJ_MINAS_FIA = "FD11209172000196"
-DATA_MARCA_DAGUA_STR = "02/01/2024"
-DATA_MARCA_DAGUA_API = "2024-01-02"
-
-FUNDOS = {
-    CNPJ_MINAS_FIA: {
-        "nome": "MINAS FIA",
-        "cota_inicio": 1.9477472,
-        "cota_ytd": 1.8726972,
-        "marca_dagua": 3.0196718,
-    },
-    "FD60096402000163": {"nome": "MINAS DIVIDENDOS FIA"},
-    "FD52204085000123": {"nome": "MINAS ONE FIA"},
-    "FD48992682000192": {"nome": "ALFA HORIZON FIA"},
-}
-COLUNAS_EXIBIDAS = ["Ticker", "Quantidade de Ações", "Preço Ontem (R$)", "Preço Hoje (R$)", "% no Fundo",
-                    "Variação Preço (%)", "Variação Ponderada (%)"]
 
 
 # ============================== FUNÇÕES DE PROCESSAMENTO DE DADOS ============================== #
@@ -134,6 +140,52 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl):
     return {"df": df, "cota_hoje": cota_hoje, "var_cota": var_cota,
             "extras": {"valor_ontem": valor_ontem, "valor_hoje": valor_hoje, "comp_fixos": comp_fixos,
                        "patrimonio": patrimonio, "qtd_cotas": qtd_cotas}}
+
+
+## NOVA ADIÇÃO: Função para buscar dados das empresas acompanhadas ##
+@st.cache_data(show_spinner="Buscando preços das empresas...", ttl=900) # Cache de 15 minutos (900s)
+def buscar_precos_empresas(tickers: list[str]):
+    """
+    Busca os dados de fechamento de D-1 e o preço atual para uma lista de tickers.
+    """
+    try:
+        # Puxa os dados dos últimos 2 dias para garantir que temos o fechamento anterior
+        dados = yf.download(tickers, period="2d", progress=False, auto_adjust=True)
+        if dados.empty:
+            st.warning("Não foi possível obter os dados de preços das empresas.")
+            return pd.DataFrame()
+
+        # Isolar os preços de fechamento
+        precos = dados['Close']
+        
+        # Se houver apenas uma linha (mercado ainda não abriu hoje, por exemplo)
+        if len(precos) < 2:
+            preco_ontem = precos.iloc[0]
+            preco_hoje = preco_ontem # Assume o mesmo preço se não houver dados de hoje
+        else:
+            preco_ontem = precos.iloc[-2]
+            preco_hoje = precos.iloc[-1]
+            
+        # Pega o preço mais recente para cada ticker
+        precos_atuais_info = [yf.Ticker(t).info.get('regularMarketPrice') for t in tickers]
+
+        df_resultado = pd.DataFrame({
+            'Ticker': tickers,
+            'Preço Ontem (R$)': preco_ontem.values,
+            'Preço Hoje (R$)': precos_atuais_info
+        })
+        
+        # Substitui None por um valor válido para o cálculo
+        df_resultado['Preço Hoje (R$)'] = pd.to_numeric(df_resultado['Preço Hoje (R$)'], errors='coerce')
+        df_resultado.fillna({'Preço Hoje (R$)': df_resultado['Preço Ontem (R$)']}, inplace=True)
+        
+        df_resultado['Variação (%)'] = (df_resultado['Preço Hoje (R$)'] / df_resultado['Preço Ontem (R$)']) - 1
+        
+        return df_resultado
+
+    except Exception as e:
+        st.error(f"Erro ao buscar preços no yfinance: {e}")
+        return pd.DataFrame()
 
 
 # ============================== FUNÇÕES AUXILIARES ============================== #
@@ -212,157 +264,188 @@ st.set_page_config("Carteiras RV AF INVEST", layout="wide")
 if autenticar_usuario():
     data_carteira_str = ultimo_dia_util()
     data_formatada = datetime.strptime(data_carteira_str, '%Y-%m-%d').strftime('%d/%m/%Y')
-    st.title(f"Carteiras RV AF INVEST - {data_formatada}")
-
+    st.title(f"AF INVEST | Análise de Carteiras e Ações")
+    st.caption(f"Posição dos fundos referente ao dia: {data_formatada}")
     st.write(f"Usuário: **{st.session_state.get('username', '').capitalize()}**")
 
-    st.session_state.setdefault('dados_calculados_cache', {})
-    st.session_state.setdefault('global_last_update_time', None)
+    ## ALTERAÇÃO: Introdução do st.tabs para criar a navegação ##
+    tab_fundos, tab_empresas = st.tabs(["📊 Análise de Fundos", "📈 Acompanhamento de Empresas"])
 
-    dados_base_do_dia = obter_dados_base_do_dia(ultimo_dia_util())
+    # ============================== ABA DE ANÁLISE DE FUNDOS ============================== #
+    with tab_fundos:
+        st.session_state.setdefault('dados_calculados_cache', {})
+        st.session_state.setdefault('global_last_update_time', None)
 
-    if not dados_base_do_dia:
-        st.error(
-            "Não foi possível obter os dados da carteira do BTG. Verifique os CNPJs ou a disponibilidade no portal.")
-        
-        if st.button("🔄 Tentar buscar dados do BTG novamente"):
-            st.cache_data.clear()
-            st.rerun()
-    else:
-        ordem_especifica = [
-            CNPJ_MINAS_FIA,         # MINAS FIA
-            "FD60096402000163",     # MINAS DIVIDENDOS FIA
-            "FD52204085000123",     # MINAS ONE FIA
-            "FD48992682000192"      # ALFA HORIZON FIA
-        ]
-        opcoes_ordenadas = [cnpj for cnpj in ordem_especifica if cnpj in dados_base_do_dia]
-        nomes_fundos = {cnpj: FUNDOS[cnpj]["nome"] for cnpj in opcoes_ordenadas}
-        
-        # <<< ALTERAÇÃO AQUI: Container para o resumo ser inserido depois
-        summary_container = st.container()
-        
-        cnpj_selecionado = st.selectbox("Selecione o fundo para visualizar:", options=opcoes_ordenadas,
-                                          format_func=lambda c: nomes_fundos.get(c, "Nome não encontrado"), key="fundo_selectbox")
+        dados_base_do_dia = obter_dados_base_do_dia(ultimo_dia_util())
 
-        col_header, col_actions = st.columns([3, 2])
-        with col_header:
-            st.subheader(f"📊 Detalhes do Fundo — {FUNDOS[cnpj_selecionado]['nome']}")
-        with col_actions:
-            btn1, btn2 = st.columns(2)
+        if not dados_base_do_dia:
+            st.error(
+                "Não foi possível obter os dados da carteira do BTG. Verifique os CNPJs ou a disponibilidade no portal.")
             
-            with btn1:
-                atualizar = st.button("🔄 Atualizar Preços")
-                if st.session_state.global_last_update_time:
-                    st.caption(f"Preços atualizados às {st.session_state.global_last_update_time:%H:%M:%S}")
-
-            with btn2:
-                if st.button("📥 Puxar Carteira BTG"):
-                    with st.spinner("Limpando cache e buscando novamente os dados do BTG..."):
-                        st.cache_data.clear()
-                    st.rerun()
-                st.caption("Puxe quando o preço D-1 parecer estranho.")
-
-        # <<< ALTERAÇÃO AQUI: Lógica de cálculo unificada
-        is_cache_incomplete = len(st.session_state.dados_calculados_cache) != len(dados_base_do_dia)
-        if atualizar or is_cache_incomplete:
-            with st.spinner("Atualizando os preços de todos os fundos..."):
-                for cnpj, dados_base_fundo in dados_base_do_dia.items():
-                    resultados = recalcular_metricas(dados_base_fundo["df_base"], dados_base_fundo["cota_ontem"],
-                                                      dados_base_fundo["qtd_cotas"], dados_base_fundo["pl"])
-                    st.session_state.dados_calculados_cache[cnpj] = resultados
+            if st.button("🔄 Tentar buscar dados do BTG novamente"):
+                st.cache_data.clear()
+                st.rerun()
+        else:
+            ordem_especifica = [
+                CNPJ_MINAS_FIA,      # MINAS FIA
+                "FD60096402000163",  # MINAS DIVIDENDOS FIA
+                "FD52204085000123",  # MINAS ONE FIA
+                "FD48992682000192"   # ALFA HORIZON FIA
+            ]
+            opcoes_ordenadas = [cnpj for cnpj in ordem_especifica if cnpj in dados_base_do_dia]
+            nomes_fundos = {cnpj: FUNDOS[cnpj]["nome"] for cnpj in opcoes_ordenadas}
             
-            st.session_state.global_last_update_time = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
-            st.rerun()
-
-        # A lógica de exibição só roda se o cache estiver completo
-        if cnpj_selecionado in st.session_state.dados_calculados_cache:
+            summary_container = st.container()
             
-            # <<< ALTERAÇÃO AQUI: Adiciona a tabela de resumo no container
-            with summary_container:
-                st.subheader("📊 Resumo das Variações")
-                summary_data = []
-                for cnpj in ordem_especifica:
-                    if cnpj in st.session_state.dados_calculados_cache:
-                        fund_name = FUNDOS[cnpj]["nome"]
-                        variation = st.session_state.dados_calculados_cache[cnpj]['var_cota']
-                        summary_data.append({"Fundo": fund_name, "Variação da Cota": variation})
+            cnpj_selecionado = st.selectbox("Selecione o fundo para visualizar:", options=opcoes_ordenadas,
+                                              format_func=lambda c: nomes_fundos.get(c, "Nome não encontrado"), key="fundo_selectbox")
+
+            col_header, col_actions = st.columns([3, 2])
+            with col_header:
+                st.subheader(f"📊 Detalhes do Fundo — {FUNDOS[cnpj_selecionado]['nome']}")
+            with col_actions:
+                btn1, btn2 = st.columns(2)
                 
-                if summary_data:
-                    summary_df = pd.DataFrame(summary_data)
+                with btn1:
+                    atualizar = st.button("🔄 Atualizar Preços dos Fundos")
+                    if st.session_state.global_last_update_time:
+                        st.caption(f"Preços atualizados às {st.session_state.global_last_update_time:%H:%M:%S}")
 
-                    def style_variation(v):
-                        color = 'green' if v > 0 else 'red' if v < 0 else 'darkgray'
-                        return f'color: {color}'
+                with btn2:
+                    if st.button("📥 Puxar Carteira BTG"):
+                        with st.spinner("Limpando cache e buscando novamente os dados do BTG..."):
+                            st.cache_data.clear()
+                        st.rerun()
+                    st.caption("Puxe quando o preço D-1 parecer estranho.")
+
+            is_cache_incomplete = len(st.session_state.dados_calculados_cache) != len(dados_base_do_dia)
+            if atualizar or is_cache_incomplete:
+                with st.spinner("Atualizando os preços de todos os fundos..."):
+                    for cnpj, dados_base_fundo in dados_base_do_dia.items():
+                        resultados = recalcular_metricas(dados_base_fundo["df_base"], dados_base_fundo["cota_ontem"],
+                                                          dados_base_fundo["qtd_cotas"], dados_base_fundo["pl"])
+                        st.session_state.dados_calculados_cache[cnpj] = resultados
+                
+                st.session_state.global_last_update_time = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
+                st.rerun()
+
+            if cnpj_selecionado in st.session_state.dados_calculados_cache:
+                with summary_container:
+                    st.subheader("Resumo das Variações dos Fundos")
+                    summary_data = []
+                    for cnpj in ordem_especifica:
+                        if cnpj in st.session_state.dados_calculados_cache:
+                            fund_name = FUNDOS[cnpj]["nome"]
+                            variation = st.session_state.dados_calculados_cache[cnpj]['var_cota']
+                            summary_data.append({"Fundo": fund_name, "Variação da Cota": variation})
                     
-                    st.dataframe(
-                        summary_df.style.map(style_variation, subset=['Variação da Cota']).format({"Variação da Cota": "{:.4%}"}),
-                        use_container_width=True,
-                        hide_index=True
-                    )
-                st.divider()
+                    if summary_data:
+                        summary_df = pd.DataFrame(summary_data)
 
-            # Lógica de exibição da tabela principal e métricas (como antes)
-            dados_calculados, cota_ontem_base = st.session_state.dados_calculados_cache[cnpj_selecionado], \
-            dados_base_do_dia[cnpj_selecionado]['cota_ontem']
-            df_final = dados_calculados["df"]
+                        def style_variation(v):
+                            color = 'green' if v > 0 else 'red' if v < 0 else 'darkgray'
+                            return f'color: {color}'
+                        
+                        st.dataframe(
+                            summary_df.style.map(style_variation, subset=['Variação da Cota']).format({"Variação da Cota": "{:.4%}"}),
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                    st.divider()
 
-            fmt = {"Quantidade de Ações": "{:,.0f}", "Preço Ontem (R$)": "R$ {:.2f}", "Preço Hoje (R$)": "R$ {:.2f}",
-                   "% no Fundo": "{:.2%}", "Variação Preço (%)": "{:.2%}", "Variação Ponderada (%)": "{:.2%}"}
+                dados_calculados, cota_ontem_base = st.session_state.dados_calculados_cache[cnpj_selecionado], \
+                dados_base_do_dia[cnpj_selecionado]['cota_ontem']
+                df_final = dados_calculados["df"]
+
+                fmt = {"Quantidade de Ações": "{:,.0f}", "Preço Ontem (R$)": "R$ {:.2f}", "Preço Hoje (R$)": "R$ {:.2f}",
+                       "% no Fundo": "{:.2%}", "Variação Preço (%)": "{:.2%}", "Variação Ponderada (%)": "{:.2%}"}
+                st.dataframe(
+                    df_final[COLUNAS_EXIBIDAS].sort_values("% no Fundo", ascending=False).style.format(fmt).map(css_var,
+                                                                                                               subset=[
+                                                                                                                   "Variação Preço (%)",
+                                                                                                                   "Variação Ponderada (%)"]),
+                    use_container_width=True, hide_index=True)
+
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Cota de Ontem", f"R$ {cota_ontem_base:.6f}")
+                c2.metric("Cota Estimada Hoje", f"R$ {dados_calculados['cota_hoje']:.6f}")
+                c3.metric("Variação da Cota", f"{dados_calculados['var_cota']:.4%}")
+
+                if cnpj_selecionado == CNPJ_MINAS_FIA:
+                    st.divider()
+                    cota_hoje = dados_calculados['cota_hoje']
+                    ref_minas_fia = FUNDOS[CNPJ_MINAS_FIA]
+                    rent_ytd = (cota_hoje / ref_minas_fia['cota_ytd'] - 1) if ref_minas_fia['cota_ytd'] > 0 else 0
+                    rent_inicio = (cota_hoje / ref_minas_fia['cota_inicio'] - 1) if ref_minas_fia['cota_inicio'] > 0 else 0
+                    hoje_str, hoje_dt = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y'), datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%Y-%m-%d')
+                    cdi_acumulado = get_cdi_acumulado(data_inicio="15/10/2020", data_fim=hoje_str)
+                    ibov_acumulado_inicio = get_ibov_acumulado(data_inicio="2020-10-15", data_fim=hoje_dt)
+                    percentual_cdi = rent_inicio - cdi_acumulado
+                    marca_dagua = ref_minas_fia['marca_dagua']
+                    falta_marca_dagua = (marca_dagua / cota_hoje - 1) if cota_hoje > 0 else 0
+                    ibov_desde_marca_dagua = get_ibov_acumulado(data_inicio=DATA_MARCA_DAGUA_API, data_fim=hoje_dt)
+                    falta_total = falta_marca_dagua + ibov_desde_marca_dagua
+
+                    st.subheader("Análise de Rentabilidade — MINAS FIA")
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("Rent. YTD", f"{rent_ytd:.2%}")
+                    m2.metric("Rent. Início (15/10/20)", f"{rent_inicio:.2%}")
+                    m3.metric("CDI no período (15/10/20)", f"{cdi_acumulado:.2%}")
+                    m4.metric("IBOV no período (15/10/20)", f"{ibov_acumulado_inicio:.2%}")
+
+                    md_label = f"M. d'Água ({DATA_MARCA_DAGUA_STR})"
+                    col_md_1, col_md_2, col_md_3 = st.columns(3)
+                    col_md_1.metric(f"Falta p/ {md_label}", f"{falta_marca_dagua:.2%}")
+                    col_md_2.metric(f"IBOV desde {md_label}", f"{ibov_desde_marca_dagua:.2%}")
+                    col_md_3.metric(f"Falta p/ {md_label} + IBOV", f"{falta_total:.2%}")
+
+                    texto_relativo_cdi = "acima do CDI" if percentual_cdi >= 0 else "abaixo do CDI"
+                    valor_display_cdi = f"{abs(percentual_cdi):.2%} {texto_relativo_cdi}"
+                    
+                    st.metric("Performance vs CDI (desde 15/10/2020)", valor_display_cdi, delta=f"{percentual_cdi:.2%}", delta_color="off")
+
+                with st.expander("🔍 Parâmetros do Cálculo"):
+                    ex = dados_calculados["extras"]
+                    st.write(f"📌 Valor das ações ontem: R$ {ex['valor_ontem']:,.2f}")
+                    st.write(f"📌 Valor das ações hoje:  R$ {ex['valor_hoje']:,.2f}")
+                    st.write(f"📎 Componentes fixos:     R$ {ex['comp_fixos']:,.2f}")
+                    st.write(f"💼 Patrimônio estimado:  R$ {ex['patrimonio']:,.2f}")
+                    st.write(f"🧮 Quantidade de cotas:  {ex['qtd_cotas']:,.2f}")
+
+    # ============================== NOVA ADIÇÃO: ABA DE ACOMPANHAMENTO DE EMPRESAS ============================== #
+    with tab_empresas:
+        st.subheader("Acompanhamento da Variação de Empresas")
+
+        # Botão de atualização específico para esta aba
+        if st.button("🔄 Atualizar Preços das Empresas"):
+            # Limpa o cache APENAS da função de buscar preços para forçar a atualização
+            buscar_precos_empresas.clear()
+        
+        # Chama a função para obter os dados de preço
+        df_empresas = buscar_precos_empresas(EMPRESAS_ACOMPANHADAS)
+
+        if not df_empresas.empty:
+            st.caption("Os preços 'Hoje' são atualizados a cada 15 minutos (ou ao clicar no botão de atualizar). O preço de 'Ontem' é o valor de fechamento do último pregão.")
+
+            # Formatação e Estilo
+            formatos_empresas = {
+                "Preço Ontem (R$)": "R$ {:.2f}",
+                "Preço Hoje (R$)": "R$ {:.2f}",
+                "Variação (%)": "{:.2%}"
+            }
+
+            def estilo_variacao_empresa(v):
+                if isinstance(v, (int, float)):
+                    cor = 'green' if v > 0 else 'red' if v < 0 else 'darkgray'
+                    return f'color: {cor}'
+                return ''
+
             st.dataframe(
-                df_final[COLUNAS_EXIBIDAS].sort_values("% no Fundo", ascending=False).style.format(fmt).map(css_var,
-                                                                                                           subset=[
-                                                                                                               "Variação Preço (%)",
-                                                                                                               "Variação Ponderada (%)"]),
-                use_container_width=True, hide_index=True)
-
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Cota de Ontem", f"R$ {cota_ontem_base:.6f}")
-            c2.metric("Cota Estimada Hoje", f"R$ {dados_calculados['cota_hoje']:.6f}")
-            c3.metric("Variação da Cota", f"{dados_calculados['var_cota']:.4%}")
-
-            if cnpj_selecionado == CNPJ_MINAS_FIA:
-                st.divider()
-                cota_hoje = dados_calculados['cota_hoje']
-                ref_minas_fia = FUNDOS[CNPJ_MINAS_FIA]
-
-                rent_ytd = (cota_hoje / ref_minas_fia['cota_ytd'] - 1) if ref_minas_fia['cota_ytd'] > 0 else 0
-                rent_inicio = (cota_hoje / ref_minas_fia['cota_inicio'] - 1) if ref_minas_fia['cota_inicio'] > 0 else 0
-
-                hoje_str, hoje_dt = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y'), datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%Y-%m-%d')
-                cdi_acumulado = get_cdi_acumulado(data_inicio="15/10/2020", data_fim=hoje_str)
-                ibov_acumulado_inicio = get_ibov_acumulado(data_inicio="2020-10-15", data_fim=hoje_dt)
-
-                percentual_cdi = rent_inicio - cdi_acumulado
-
-                marca_dagua = ref_minas_fia['marca_dagua']
-                falta_marca_dagua = (marca_dagua / cota_hoje - 1) if cota_hoje > 0 else 0
-
-                ibov_desde_marca_dagua = get_ibov_acumulado(data_inicio=DATA_MARCA_DAGUA_API, data_fim=hoje_dt)
-                falta_total = falta_marca_dagua + ibov_desde_marca_dagua
-
-                st.subheader("Análise de Rentabilidade — MINAS FIA")
-
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric("Rent. YTD", f"{rent_ytd:.2%}")
-                m2.metric("Rent. Início (15/10/20)", f"{rent_inicio:.2%}")
-                m3.metric("CDI no período (15/10/20)", f"{cdi_acumulado:.2%}")
-                m4.metric("IBOV no período (15/10/20)", f"{ibov_acumulado_inicio:.2%}")
-
-                md_label = f"M. d'Água ({DATA_MARCA_DAGUA_STR})"
-                col_md_1, col_md_2, col_md_3 = st.columns(3)
-                col_md_1.metric(f"Falta p/ {md_label}", f"{falta_marca_dagua:.2%}")
-                col_md_2.metric(f"IBOV desde {md_label}", f"{ibov_desde_marca_dagua:.2%}")
-                col_md_3.metric(f"Falta p/ {md_label} + IBOV", f"{falta_total:.2%}")
-
-                texto_relativo_cdi = "acima do CDI" if percentual_cdi >= 0 else "abaixo do CDI"
-                valor_display_cdi = f"{abs(percentual_cdi):.2%} {texto_relativo_cdi}"
-                
-                st.metric("Performance vs CDI (desde 15/10/2020)", valor_display_cdi, delta=f"{percentual_cdi:.2%}", delta_color="off")
-
-            with st.expander("🔍 Parâmetros do Cálculo"):
-                ex = dados_calculados["extras"]
-                st.write(f"📌 Valor das ações ontem: R$ {ex['valor_ontem']:,.2f}")
-                st.write(f"📌 Valor das ações hoje:  R$ {ex['valor_hoje']:,.2f}")
-                st.write(f"📎 Componentes fixos:     R$ {ex['comp_fixos']:,.2f}")
-                st.write(f"💼 Patrimônio estimado:  R$ {ex['patrimonio']:,.2f}")
-                st.write(f"🧮 Quantidade de cotas:  {ex['qtd_cotas']:,.2f}")
+                df_empresas.style.applymap(
+                    estilo_variacao_empresa, subset=['Variação (%)']
+                ).format(formatos_empresas),
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("Aguardando dados das empresas. Clique no botão de atualização se necessário.")
