@@ -235,11 +235,11 @@ def buscar_precos_empresas(tickers: list[str]):
         dados = yf.download(tickers, period=periodo_longo, progress=False, auto_adjust=True)
 
         if dados.empty:
-            st.warning("Não foi possível obter dados históricos via yfinance.")
+            # st.warning("Não foi possível obter dados históricos via yfinance.")
             return pd.DataFrame()
 
         precos_historicos = dados['Close']
-        if precos_historicos.empty:
+        if precos_historicos.empty or len(precos_historicos) < 2:
             return pd.DataFrame()
 
         # --- Cálculos de Performance ---
@@ -295,7 +295,7 @@ def buscar_precos_empresas(tickers: list[str]):
         return df_resultado
 
     except Exception as e:
-        st.error(f"Ocorreu um erro ao buscar os preços no yfinance: {e}")
+        # st.error(f"Ocorreu um erro ao buscar os preços no yfinance: {e}")
         return pd.DataFrame()
 
 
@@ -533,7 +533,24 @@ if autenticar_usuario():
     with tab_empresas:
         st.subheader("Análise de Performance por Setor")
         st.markdown("---")
-    
+
+        if 'last_update_empresas' not in st.session_state:
+            st.session_state.last_update_empresas = None
+
+        col_btn, col_time = st.columns([1, 4])
+        with col_btn:
+            if st.button("🔄 Atualizar Preços", key="update_empresas"):
+                st.cache_data.clear() # Limpa todo o cache para forçar a atualização de tudo
+                st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
+                st.rerun()
+
+        with col_time:
+            if st.session_state.last_update_empresas:
+                st.caption(f"Última atualização: **{st.session_state.last_update_empresas.strftime('%d/%m/%Y às %H:%M:%S')}**")
+        
+        st.markdown("---")
+
+
         # --- LÓGICA DE ORDENAÇÃO DOS SETORES ---
         # Ordem de exibição definida pelo usuário
         ordem_desejada = [
@@ -556,14 +573,18 @@ if autenticar_usuario():
         # Monta a lista final na ordem correta
         setores_ordenados = ordem_desejada + setores_nao_ordenados
         if setor_bdr in todos_setores:
+            # Garante que o setor BDR só é adicionado se existir na lista de dados
             setores_ordenados.append(setor_bdr)
     
         # Loop para criar uma tabela para cada setor, na ordem definida
         for setor in setores_ordenados:
+            # Filtra o DataFrame para garantir que estamos lidando apenas com setores que existem
+            df_setor_atual = df_setorial[df_setorial['SETOR'] == setor]
+            if df_setor_atual.empty:
+                continue # Pula para o próximo setor se este não tiver empresas
+
             st.subheader(f"Setor: {setor}")
     
-            # Pega os tickers apenas para o setor atual
-            df_setor_atual = df_setorial[df_setorial['SETOR'] == setor]
             tickers_do_setor = df_setor_atual['CODIGO'].tolist()
             tickers_para_api = [ticker + '.SA' for ticker in tickers_do_setor]
     
