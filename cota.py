@@ -39,11 +39,11 @@ dados_setoriais = [
     {"SETOR": "Energia Elétrica", "CODIGO": "CPLE6"},
 
     # Oil and Gas
-    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "BRAV3"},
-    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "CSAN3"},
-    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PETR4"},
-    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PRIO3"},
-    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "RECV3"},
+    {"SETOR": "Oil & Gas", "CODIGO": "BRAV3"},
+    {"SETOR": "Oil & Gas", "CODIGO": "CSAN3"},
+    {"SETOR": "Oil & Gas", "CODIGO": "PETR4"},
+    {"SETOR": "Oil & Gas", "CODIGO": "PRIO3"},
+    {"SETOR": "Oil & Gas", "CODIGO": "RECV3"},
 
     # Celulose
     {"SETOR": "Papel e Celulose", "CODIGO": "KLBN11"},
@@ -94,8 +94,8 @@ dados_setoriais = [
     {"SETOR": "BDR – Setor internacional", "CODIGO": "S1PO34"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "TSLA34"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "WALM34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "ABNB34"},
 
-    # Demais
 ]
 
 df_setorial = pd.DataFrame(dados_setoriais)
