@@ -34,11 +34,77 @@ FUNDOS = {
 COLUNAS_EXIBIDAS = ["Ticker", "Quantidade de Ações", "Preço Ontem (R$)", "Preço Hoje (R$)", "% no Fundo",
                     "Variação Preço (%)", "Variação Ponderada (%)"]
 
-## NOVA ADIÇÃO: Lista de empresas para acompanhar na nova aba ##
-EMPRESAS_ACOMPANHADAS = [
-    'PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA', 
-    'ABEV3.SA', 'WEGE3.SA', 'MGLU3.SA', 'LREN3.SA'
-]
+# ============================== DADOS DE CLASSIFICAÇÃO SETORIAL ==============================
+# Lista fixa e final de empresas e seus setores.
+
+    dados_setoriais = [
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "AAPL34"},
+        {"SETOR": "Bancos", "CODIGO": "ABCB4"},
+        {"SETOR": "Exploração de Imóveis", "CODIGO": "ALOS3"},
+        {"SETOR": "Automóveis e Motocicletas", "CODIGO": "AMOB3"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "AMZO34"},
+        {"SETOR": "Serviços Educacionais", "CODIGO": "ANIM3"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "BABA34"},
+        {"SETOR": "Bancos", "CODIGO": "BBAS3"},
+        {"SETOR": "Bancos", "CODIGO": "BBDC4"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "BERK34"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "BIEV39"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "BOAC34"},
+        {"SETOR": "Bancos", "CODIGO": "BPAC11"},
+        {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "BRAV3"},
+        {"SETOR": "Bancos", "CODIGO": "BRBI11"},
+        {"SETOR": "Bancos", "CODIGO": "BRSR6"},
+        {"SETOR": "Alimentos Diversos", "CODIGO": "CAML3"},
+        {"SETOR": "Bancos", "CODIGO": "CASH3"}, # ADICIONADO
+        {"SETOR": "Minerais Metálicos", "CODIGO": "CBAV3"},
+        {"SETOR": "Fios e Tecidos", "CODIGO": "CEDO3"},
+        {"SETOR": "Serviços Educacionais", "CODIGO": "COGN3"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "COLG34"},
+        {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "CSAN3"},
+        {"SETOR": "Incorporações", "CODIGO": "EZTC3"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "GOGL34"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "GOGL35"},
+        {"SETOR": "Exploração de Imóveis", "CODIGO": "HBSA3"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "INGG34"},
+        {"SETOR": "Holdings Diversificadas", "CODIGO": "ITSA4"},
+        {"SETOR": "Bancos", "CODIGO": "ITUB4"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "JPMC34"},
+        {"SETOR": "Transporte Rodoviário", "CODIGO": "JSLG3"},
+        {"SETOR": "Papel e Celulose", "CODIGO": "KLBN11"},
+        {"SETOR": "Exploração de Imóveis", "CODIGO": "LOGG3"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "M2ST34"}, # ADICIONADO
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "MSTR"},   # ADICIONADO
+        {"SETOR": "Incorporações", "CODIGO": "MELK3"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "M1TA34"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "MCDC34"},
+        {"SETOR": "Computadores e Equipamentos", "CODIGO": "MLAS3"},
+        {"SETOR": "Aluguel de carros", "CODIGO": "MOVI3"},
+        {"SETOR": "Automóveis e Motocicletas", "CODIGO": "MYPK3"},
+        {"SETOR": "Energia Elétrica", "CODIGO": "NEOE3"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "NFLX34"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "NVDC34"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "PEPB34"},
+        {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PETR4"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "PFIZ34"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "PGCO34"},
+        {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PRIO3"},
+        {"SETOR": "Material Rodoviário", "CODIGO": "RAPT4"},
+        {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "RECV3"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "S1PO34"},
+        {"SETOR": "Holdings Diversificadas", "CODIGO": "SIMH3"},
+        {"SETOR": "ETF – Índice Small Caps", "CODIGO": "SMAL11"},
+        {"SETOR": "Papel e Celulose", "CODIGO": "SUZB3"},
+        {"SETOR": "Material Rodoviário", "CODIGO": "TUPY3"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "TSLA34"},
+        {"SETOR": "Aluguel de carros", "CODIGO": "VAMO3"},
+        {"SETOR": "Serviços Educacionais", "CODIGO": "VTRU3"},
+        {"SETOR": "BDR – Setor internacional", "CODIGO": "WALM34"},
+        {"SETOR": "Serviços Educacionais", "CODIGO": "YDUQ3"},
+    ]
+    
+    df_setorial = pd.DataFrame(dados_setoriais)
+
+# ===========================================================================================
 
 
 # ============================== FUNÇÕES DE LOGIN ============================== #
