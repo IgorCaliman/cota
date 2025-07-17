@@ -94,7 +94,7 @@ dados_setoriais = [
     {"SETOR": "BDR – Setor internacional", "CODIGO": "S1PO34"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "TSLA34"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "WALM34"},
-    {"SETOR": "BDR – Setor internacional", "CODIGO": "ABNB34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "AIRB34"},
 
 ]
 
