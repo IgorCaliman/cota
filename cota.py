@@ -477,6 +477,7 @@ if autenticar_usuario():
                 c2.metric("Cota Estimada Hoje", f"R$ {dados_calculados['cota_hoje']:.6f}")
                 c3.metric("Variação da Cota", f"{dados_calculados['var_cota']:.4%}")
 
+                # ======================= BLOCO DE ANÁLISE CORRIGIDO =======================
                 if cnpj_selecionado == CNPJ_MINAS_FIA:
                     st.divider()
                     cota_hoje = dados_calculados['cota_hoje']
@@ -513,6 +514,32 @@ if autenticar_usuario():
                     st.metric("Performance vs CDI (desde 15/10/2020)", valor_display_cdi,
                               delta=f"{percentual_cdi:.2%}", delta_color="off")
 
+                # O 'elif' está no mesmo nível do 'if', garantindo que ele será checado corretamente
+                elif cnpj_selecionado == "FD60096402000163":
+                    st.divider()
+                    st.subheader("Análise de Rentabilidade — MINAS DIVIDENDOS FIA")
+                    
+                    cota_hoje = dados_calculados['cota_hoje']
+                    ref_div = FUNDOS["FD60096402000163"]
+                    
+                    data_inicio_str_div = ref_div['data_inicio_str']
+                    data_inicio_api_div = ref_div['data_inicio_api']
+
+                    rent_inicio_div = (cota_hoje / ref_div['cota_inicio'] - 1) if ref_div['cota_inicio'] > 0 else 0
+                    
+                    hoje_str = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y')
+                    hoje_dt = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%Y-%m-%d')
+                    
+                    cdi_periodo = get_cdi_acumulado(data_inicio=data_inicio_str_div, data_fim=hoje_str)
+                    ibov_periodo = get_ibov_acumulado(data_inicio=data_inicio_api_div, data_fim=hoje_dt)
+
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric(f"Rent. Início ({data_inicio_str_div})", f"{rent_inicio_div:.2%}")
+                    col2.metric("CDI no Período", f"{cdi_periodo:.2%}")
+                    col3.metric("IBOV no Período", f"{ibov_periodo:.2%}")
+
+                # O expander de parâmetros agora fica fora do bloco if/elif, 
+                # para aparecer para todos os fundos.
                 with st.expander("🔍 Parâmetros do Cálculo"):
                     ex = dados_calculados["extras"]
                     st.write(f"📌 Valor das ações ontem: R$ {ex['valor_ontem']:,.2f}")
@@ -520,29 +547,6 @@ if autenticar_usuario():
                     st.write(f"📎 Componentes fixos:     R$ {ex['comp_fixos']:,.2f}")
                     st.write(f"💼 Patrimônio estimado:  R$ {ex['patrimonio']:,.2f}")
                     st.write(f"🧮 Quantidade de cotas:  {ex['qtd_cotas']:,.2f}")
-
-            elif cnpj_selecionado == "FD60096402000163":
-                st.divider()
-                st.subheader("Análise de Rentabilidade — MINAS DIVIDENDOS FIA")
-                
-                cota_hoje = dados_calculados['cota_hoje']
-                ref_div = FUNDOS["FD60096402000163"]
-                
-                data_inicio_str_div = ref_div['data_inicio_str']
-                data_inicio_api_div = ref_div['data_inicio_api']
-
-                rent_inicio_div = (cota_hoje / ref_div['cota_inicio'] - 1) if ref_div['cota_inicio'] > 0 else 0
-                
-                hoje_str = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y')
-                hoje_dt = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%Y-%m-%d')
-                
-                cdi_periodo = get_cdi_acumulado(data_inicio=data_inicio_str_div, data_fim=hoje_str)
-                ibov_periodo = get_ibov_acumulado(data_inicio=data_inicio_api_div, data_fim=hoje_dt)
-
-                col1, col2, col3 = st.columns(3)
-                col1.metric(f"Rent. Início ({data_inicio_str_div})", f"{rent_inicio_div:.2%}")
-                col2.metric("CDI no Período", f"{cdi_periodo:.2%}")
-                col3.metric("IBOV no Período", f"{ibov_periodo:.2%}")
 
     # ============================== ABA DE ACOMPANHAMENTO DE EMPRESAS ============================== #
     with tab_empresas:
