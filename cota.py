@@ -150,58 +150,83 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl):
 
 ## NOVA ADIÇÃO: Função para buscar dados das empresas acompanhadas ##
 # ==============================  COPIE E SUBSTITUA ESTA FUNÇÃO ==============================
+from dateutil.relativedelta import relativedelta # Importe no início do seu script
 
-@st.cache_data(show_spinner="Buscando preços e calculando volatilidade...", ttl=900) # Cache de 15 minutos (900s)
+@st.cache_data(show_spinner="Buscando preços e calculando performance...", ttl=900)
 def buscar_precos_empresas(tickers: list[str]):
     """
-    Busca os dados de D-1, D-0 e calcula a volatilidade histórica (60 dias)
-    para uma lista de tickers de forma robusta.
+    Busca dados de D-1, D-0, volatilidade e a performance em vários períodos.
     """
     try:
-        # Período maior para garantir ~60 dias de pregão para o cálculo da volatilidade
-        dados = yf.download(tickers, period="90d", progress=False, auto_adjust=True)
+        # Período de 4 anos para garantir dados para todos os cálculos
+        periodo_longo = "4y"
+        dados = yf.download(tickers, period=periodo_longo, progress=False, auto_adjust=True)
         
         if dados.empty:
-            st.warning("Não foi possível obter os dados de preços das empresas via yfinance.")
+            st.warning("Não foi possível obter dados históricos via yfinance.")
             return pd.DataFrame()
 
+        precos_historicos = dados['Close']
+        if precos_historicos.empty:
+             return pd.DataFrame()
+
+        # --- Cálculos de Performance ---
+        hoje = precos_historicos.index[-1]
+        datas_inicio = {
+            "1M": hoje - relativedelta(months=1),
+            "6M": hoje - relativedelta(months=6),
+            "YTD": datetime(hoje.year, 1, 1),
+            "1A": hoje - relativedelta(years=1),
+            "3A": hoje - relativedelta(years=3)
+        }
+
+        # Preço final é sempre o mais recente
+        preco_final = precos_historicos.iloc[-1]
+        
+        variacoes = {}
+        for nome, data_inicio in datas_inicio.items():
+            # Encontra o índice da primeira data de pregão >= à data de início calculada
+            idx_inicio = precos_historicos.index.searchsorted(data_inicio)
+            
+            # Garante que o índice não está fora dos limites
+            if idx_inicio < len(precos_historicos):
+                preco_inicial = precos_historicos.iloc[idx_inicio]
+                # Cálculo vetorizado para todas as ações de uma vez
+                variacoes[nome] = (preco_final / preco_inicial) - 1
+            else:
+                # Se não houver dados para o período, preenche com zero ou NaN
+                variacoes[nome] = pd.Series(0, index=precos_historicos.columns)
+        
+        df_variacoes = pd.DataFrame(variacoes)
+
         # --- Cálculo da Volatilidade ---
-        # 1. Calcular os retornos diários para cada ação
-        retornos_diarios = dados['Close'].pct_change()
-        # 2. Calcular o desvio padrão dos retornos (essa é a volatilidade diária)
-        # Usamos .iloc[-60:] para pegar apenas os últimos 60 pregões.
+        retornos_diarios = precos_historicos.pct_change()
         volatilidade_60d = retornos_diarios.iloc[-60:].std()
 
         # --- Extração de Preços (Ontem e Hoje) ---
-        precos_df = dados['Close']
-        if len(precos_df) < 2:
-            preco_ontem = precos_df.iloc[0]
-            preco_hoje = precos_df.iloc[0]
-        else:
-            preco_ontem = precos_df.iloc[-2]
-            preco_hoje = precos_df.iloc[-1]
+        preco_ontem = precos_historicos.iloc[-2]
+        preco_hoje = precos_historicos.iloc[-1]
 
         # --- Montagem do DataFrame Final ---
         df_resultado = pd.DataFrame({
             'Preço Ontem (R$)': preco_ontem,
-            'Preço Hoje (R$)': preco_hoje
+            'Preço Hoje (R$)': preco_hoje,
+            'Variação (%)': (preco_hoje / preco_ontem) - 1,
+            'Volatilidade (60d)': volatilidade_60d
         })
-        df_resultado.dropna(inplace=True)
-        df_resultado['Variação (%)'] = (df_resultado['Preço Hoje (R$)'] / df_resultado['Preço Ontem (R$)']) - 1
+        
+        # Junta os dataframes de resultado e de variações pelo índice (ticker)
+        df_resultado = df_resultado.join(df_variacoes)
         df_resultado.reset_index(inplace=True)
         df_resultado.rename(columns={'index': 'Ticker'}, inplace=True)
-
-        # Adicionar a coluna de volatilidade mapeando pelo ticker
-        df_resultado['Volatilidade (60d)'] = df_resultado['Ticker'].map(volatilidade_60d)
         
-        # Reordenar colunas
-        return df_resultado[['Ticker', 'Preço Ontem (R$)', 'Preço Hoje (R$)', 'Variação (%)', 'Volatilidade (60d)']]
+        return df_resultado
 
     except Exception as e:
         st.error(f"Ocorreu um erro ao buscar os preços no yfinance: {e}")
         return pd.DataFrame()
 
-# ==============================  FIM DA SUBSTITUIÇÃO ==============================
+
 
 # ============================== FUNÇÕES AUXILIARES ============================== #
 
@@ -433,47 +458,55 @@ if autenticar_usuario():
     with tab_empresas:
         st.subheader("Acompanhamento da Variação de Empresas")
     
-        # Inicializa o estado da última atualização se não existir
         if 'last_update_empresas' not in st.session_state:
             st.session_state.last_update_empresas = None
     
         col1, col2 = st.columns([1, 4])
         with col1:
-            # Botão de atualização específico para esta aba
             if st.button("🔄 Atualizar Preços", key="update_empresas"):
                 buscar_precos_empresas.clear()
-                # Define a hora da atualização no momento do clique
                 st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
-                st.rerun() # Força o rerun para buscar os dados novos
+                st.rerun()
     
         with col2:
-            # Mostra a hora da última atualização
             if st.session_state.last_update_empresas:
                 st.caption(f"Última atualização: **{st.session_state.last_update_empresas.strftime('%d/%m/%Y às %H:%M:%S')}**")
             else:
                  st.caption("Clique em 'Atualizar Preços' para carregar os dados.")
     
-        # Chama a função para obter os dados de preço
         df_empresas = buscar_precos_empresas(EMPRESAS_ACOMPANHADAS)
     
-        # Se for a primeira vez que os dados são carregados, define a hora.
         if df_empresas is not None and not df_empresas.empty and st.session_state.last_update_empresas is None:
             st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
             st.rerun()
     
         if not df_empresas.empty:
-            # Tira o ".SA" do ticker ANTES de exibir
             df_empresas_display = df_empresas.copy()
             df_empresas_display['Ticker'] = df_empresas_display['Ticker'].str.replace(".SA", "", regex=False)
     
-            st.caption("A 'Volatilidade (60d)' é o desvio padrão dos retornos diários nos últimos 60 pregões.")
+            # Renomeia colunas para melhor visualização na tabela
+            df_empresas_display.rename(columns={
+                'Variação (%)': 'Var. Dia',
+                'Volatilidade (60d)': 'Vol (60d)',
+                '1M': 'Var. 1M',
+                '6M': 'Var. 6M',
+                '1A': 'Var. 1A',
+                '3A': 'Var. 3A'
+            }, inplace=True)
     
-            # Formatação e Estilo, incluindo a nova coluna
+            st.caption("A 'Vol (60d)' é o desvio padrão dos retornos diários nos últimos 60 pregões.")
+            
+            # Adiciona formatação para as novas colunas
             formatos_empresas = {
                 "Preço Ontem (R$)": "R$ {:.2f}",
                 "Preço Hoje (R$)": "R$ {:.2f}",
-                "Variação (%)": "{:.2%}",
-                "Volatilidade (60d)": "{:.2%}" # Formata como porcentagem
+                "Var. Dia": "{:.2%}",
+                "Vol (60d)": "{:.2%}",
+                "Var. 1M": "{:.2%}",
+                "Var. 6M": "{:.2%}",
+                "YTD": "{:.2%}",
+                "Var. 1A": "{:.2%}",
+                "Var. 3A": "{:.2%}"
             }
     
             def estilo_variacao_empresa(v):
@@ -482,14 +515,15 @@ if autenticar_usuario():
                     return f'color: {cor}'
                 return ''
     
-            st.dataframe(
-                df_empresas_display.style.applymap(
-                    estilo_variacao_empresa, subset=['Variação (%)']
-                ).format(formatos_empresas),
-                use_container_width=True,
-                hide_index=True
-            )
+            # Colunas a serem coloridas
+            colunas_para_colorir = ['Var. Dia', 'Var. 1M', 'Var. 6M', 'YTD', 'Var. 1A', 'Var. 3A']
+            
+            styler = df_empresas_display.style
+            for col in colunas_para_colorir:
+                styler = styler.applymap(estilo_variacao_empresa, subset=[col])
+            
+            styler = styler.format(formatos_empresas)
+    
+            st.dataframe(styler, use_container_width=True, hide_index=True)
         else:
             st.info("Aguardando dados das empresas. Clique no botão de atualização se necessário.")
-
-# ==============================  FIM DA SUBSTITUIÇÃO ==============================
