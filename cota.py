@@ -530,98 +530,92 @@ if autenticar_usuario():
                     st.write(f"🧮 Quantidade de cotas:  {ex['qtd_cotas']:,.2f}")
 
     # ============================== ABA DE ACOMPANHAMENTO DE EMPRESAS ============================== #
-    with tab_empresas:
-        st.subheader("Análise de Performance por Setor")
-        st.markdown("---")
-
-        if 'last_update_empresas' not in st.session_state:
-            st.session_state.last_update_empresas = None
-
-        col_btn, col_time = st.columns([1, 4])
-        with col_btn:
-            if st.button("🔄 Atualizar Preços", key="update_empresas"):
-                st.cache_data.clear() # Limpa todo o cache para forçar a atualização de tudo
-                st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
-                st.rerun()
-
-        with col_time:
-            if st.session_state.last_update_empresas:
-                st.caption(f"Última atualização: **{st.session_state.last_update_empresas.strftime('%d/%m/%Y às %H:%M:%S')}**")
+    # ============================== ABA DE ACOMPANHAMENTO DE EMPRESAS ============================== #
+        with tab_empresas:
+            # Bloco de atualização movido para o topo
+            if 'last_update_empresas' not in st.session_state:
+                st.session_state.last_update_empresas = None
+    
+            col_btn, col_time = st.columns([1, 4])
+            with col_btn:
+                if st.button("🔄 Atualizar Preços", key="update_empresas"):
+                    # Limpa o cache da função específica para forçar a atualização
+                    buscar_precos_empresas.clear() 
+                    st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
+                    st.rerun()
+    
+            with col_time:
+                if st.session_state.last_update_empresas:
+                    st.caption(f"Última atualização: **{st.session_state.last_update_empresas.strftime('%d/%m/%Y às %H:%M:%S')}**")
+    
+            # --- LÓGICA DE ORDENAÇÃO E EXIBIÇÃO DOS SETORES ---
+            # Ordem de exibição definida pelo usuário
+            ordem_desejada = [
+                "Grupo Simpar",
+                "Serviços Educacionais",
+                "Papel e Celulose",
+                "Energia Elétrica",
+                "Real State",
+                "Material Rodoviário"
+            ]
+            setor_bdr = "BDR – Setor internacional"
+            
+            # Pega todos os setores únicos da nossa lista de dados
+            todos_setores = df_setorial['SETOR'].unique().tolist()
+            
+            # Lógica para encontrar setores "esquecidos" e garantir a ordem final
+            setores_nao_ordenados = [s for s in todos_setores if s not in ordem_desejada and s != setor_bdr]
+            setores_nao_ordenados.sort() # Ordena os esquecidos alfabeticamente
+            
+            # Monta a lista final na ordem correta
+            setores_ordenados = ordem_desejada + setores_nao_ordenados
+            if setor_bdr in todos_setores:
+                setores_ordenados.append(setor_bdr)
         
-        st.markdown("---")
-
-
-        # --- LÓGICA DE ORDENAÇÃO DOS SETORES ---
-        # Ordem de exibição definida pelo usuário
-        ordem_desejada = [
-            "Grupo Simpar",
-            "Serviços Educacionais",
-            "Papel e Celulose",
-            "Energia Elétrica",
-            "Real State",
-            "Material Rodoviário"
-        ]
-        setor_bdr = "BDR – Setor internacional"
+            # Loop para criar uma tabela para cada setor, na ordem definida
+            for setor in setores_ordenados:
+                df_setor_atual = df_setorial[df_setorial['SETOR'] == setor]
+                if df_setor_atual.empty:
+                    continue 
+    
+                st.subheader(f"Setor: {setor}")
         
-        # Pega todos os setores únicos da nossa lista de dados
-        todos_setores = df_setorial['SETOR'].unique().tolist()
+                tickers_do_setor = df_setor_atual['CODIGO'].tolist()
+                tickers_para_api = [ticker + '.SA' for ticker in tickers_do_setor]
         
-        # Lógica para encontrar setores "esquecidos" e garantir a ordem final
-        setores_nao_ordenados = [s for s in todos_setores if s not in ordem_desejada and s != setor_bdr]
-        setores_nao_ordenados.sort() # Ordena os esquecidos alfabeticamente
+                df_performance = buscar_precos_empresas(tickers_para_api)
         
-        # Monta a lista final na ordem correta
-        setores_ordenados = ordem_desejada + setores_nao_ordenados
-        if setor_bdr in todos_setores:
-            # Garante que o setor BDR só é adicionado se existir na lista de dados
-            setores_ordenados.append(setor_bdr)
-    
-        # Loop para criar uma tabela para cada setor, na ordem definida
-        for setor in setores_ordenados:
-            # Filtra o DataFrame para garantir que estamos lidando apenas com setores que existem
-            df_setor_atual = df_setorial[df_setorial['SETOR'] == setor]
-            if df_setor_atual.empty:
-                continue # Pula para o próximo setor se este não tiver empresas
-
-            st.subheader(f"Setor: {setor}")
-    
-            tickers_do_setor = df_setor_atual['CODIGO'].tolist()
-            tickers_para_api = [ticker + '.SA' for ticker in tickers_do_setor]
-    
-            # Busca os dados de performance para os tickers do setor
-            df_performance = buscar_precos_empresas(tickers_para_api)
-    
-            if not df_performance.empty:
-                df_display = df_performance.copy()
-                df_display['Ticker'] = df_display['Ticker'].str.replace(".SA", "", regex=False)
-                df_display.rename(columns={
-                    'Variação (%)': 'Var. Dia', 'Volatilidade (60d)': 'Vol (60d)',
-                    '1M': 'Var. 1M', '6M': 'Var. 6M', '1A': 'Var. 1A', '3A': 'Var. 3A'
-                }, inplace=True)
-    
-                formatos = {
-                    "Preço Hoje (R$)": "R$ {:.2f}", "Var. Dia": "{:.2%}", "Vol (60d)": "{:.2%}",
-                    "Var. 1M": "{:.2%}", "Var. 6M": "{:.2%}", "YTD": "{:.2%}", "Var. 1A": "{:.2%}", "Var. 3A": "{:.2%}"
-                }
-                colunas_para_remover = ['Preço Ontem (R$)']
-                colunas_para_colorir = ['Var. Dia', 'Var. 1M', 'Var. 6M', 'YTD', 'Var. 1A', 'Var. 3A']
-    
-                for col in colunas_para_remover:
-                    if col in df_display.columns:
-                        del df_display[col]
-    
-                def estilo_variacao_empresa(v):
-                    if isinstance(v, (int, float)):
-                        cor = 'green' if v > 0 else 'red' if v < 0 else 'darkgray'
-                        return f'color: {cor}'
-                    return ''
-    
-                styler = df_display.style
-                for col in colunas_para_colorir:
-                    if col in df_display.columns:
-                        styler = styler.applymap(estilo_variacao_empresa, subset=[col])
-                styler = styler.format(formatos)
-    
-                st.dataframe(styler, use_container_width=True, hide_index=True)
-    
-            st.markdown("---")  # Divisor entre os setores
+                if not df_performance.empty:
+                    df_display = df_performance.copy()
+                    df_display['Ticker'] = df_display['Ticker'].str.replace(".SA", "", regex=False)
+                    df_display.rename(columns={
+                        'Variação (%)': 'Var. Dia', 'Volatilidade (60d)': 'Vol (60d)',
+                        '1M': 'Var. 1M', '6M': 'Var. 6M', '1A': 'Var. 1A', '3A': 'Var. 3A'
+                    }, inplace=True)
+        
+                    formatos = {
+                        "Preço Hoje (R$)": "R$ {:.2f}", "Var. Dia": "{:.2%}", "Vol (60d)": "{:.2%}",
+                        "Var. 1M": "{:.2%}", "Var. 6M": "{:.2%}", "YTD": "{:.2%}", "Var. 1A": "{:.2%}", "Var. 3A": "{:.2%}"
+                    }
+                    colunas_para_remover = ['Preço Ontem (R$)']
+                    colunas_para_colorir = ['Var. Dia', 'Var. 1M', 'Var. 6M', 'YTD', 'Var. 1A', 'Var. 3A']
+        
+                    for col in colunas_para_remover:
+                        if col in df_display.columns:
+                            del df_display[col]
+        
+                    def estilo_variacao_empresa(v):
+                        if isinstance(v, (int, float)):
+                            cor = 'green' if v > 0 else 'red' if v < 0 else 'darkgray'
+                            return f'color: {cor}'
+                        return ''
+        
+                    styler = df_display.style
+                    for col in colunas_para_colorir:
+                        if col in df_display.columns:
+                            styler = styler.applymap(estilo_variacao_empresa, subset=[col])
+                    styler = styler.format(formatos)
+        
+                    st.dataframe(styler, use_container_width=True, hide_index=True)
+        
+                st.markdown("---")
