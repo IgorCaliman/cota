@@ -90,6 +90,7 @@ dados_setoriais = [
     {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "RECV3"},
     {"SETOR": "Papel e Celulose", "CODIGO": "KLBN11"},
     {"SETOR": "Papel e Celulose", "CODIGO": "SUZB3"},
+    {"SETOR": "Papel e Celulose", "CODIGO": "RANI3"},
 ]
 
 df_setorial = pd.DataFrame(dados_setoriais)
