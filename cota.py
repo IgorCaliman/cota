@@ -207,11 +207,18 @@ def get_ibov_acumulado(data_inicio: str, data_fim: str) -> float:
         return 0.0
 
 
-def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl):
+# Substitua sua função 'recalcular_metricas' por esta versão
+def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl, precos_hoje_dict):
     df = df_base.copy()
-    df["Preço Hoje (R$)"] = df["Ticker"].map(lambda t: yf.Ticker(f"{t}.SA").info.get("regularMarketPrice", None))
+    
+    # Mapeia os preços a partir do dicionário recebido (muito mais rápido!)
+    df["Preço Hoje (R$)"] = df["Ticker"].map(precos_hoje_dict)
+    # Caso um ticker falhe, usa o preço de ontem como fallback
+    df["Preço Hoje (R$)"].fillna(df["Preço Ontem (R$)"], inplace=True) 
+
     df["Variação Preço (%)"] = (df["Preço Hoje (R$)"] / df["Preço Ontem (R$)"] - 1).fillna(0)
     df["Valor Hoje (R$)"] = df["Quantidade de Ações"] * df["Preço Hoje (R$)"]
+    
     valor_hoje = df["Valor Hoje (R$)"].fillna(0).sum()
     df["% no Fundo"] = df["Valor Hoje (R$)"] / valor_hoje if valor_hoje != 0 else 0
     df["Variação Ponderada (%)"] = df["Variação Preço (%)"] * df["% no Fundo"]
@@ -219,6 +226,7 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl):
     patrimonio = valor_hoje + comp_fixos
     cota_hoje = patrimonio / qtd_cotas if qtd_cotas != 0 else 0
     var_cota = cota_hoje / cota_ontem - 1 if cota_ontem != 0 else 0
+    
     return {"df": df, "cota_hoje": cota_hoje, "var_cota": var_cota,
             "extras": {"valor_ontem": valor_ontem, "valor_hoje": valor_hoje, "comp_fixos": comp_fixos,
                        "patrimonio": patrimonio, "qtd_cotas": qtd_cotas}}
@@ -422,18 +430,38 @@ if autenticar_usuario():
                         st.rerun()
                     st.caption("Puxe quando o preço D-1 parecer estranho.")
 
-            is_cache_incomplete = len(st.session_state.dados_calculados_cache) != len(dados_base_do_dia)
-            if atualizar or is_cache_incomplete:
-                with st.spinner("Atualizando os preços de todos os fundos..."):
-                    for cnpj, dados_base_fundo in dados_base_do_dia.items():
-                        resultados = recalcular_metricas(dados_base_fundo["df_base"],
-                                                          dados_base_fundo["cota_ontem"],
-                                                          dados_base_fundo["qtd_cotas"], dados_base_fundo["pl"])
-                        st.session_state.dados_calculados_cache[cnpj] = resultados
-
-                st.session_state.global_last_update_time = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
-                st.rerun()
-
+                is_cache_incomplete = len(st.session_state.dados_calculados_cache) != len(dados_base_do_dia)
+                if atualizar or is_cache_incomplete:
+                    with st.spinner("Buscando preços e atualizando todos os fundos..."):
+                        # 1. Coleta todos os tickers únicos de todos os fundos em uma lista
+                        todos_os_tickers = set()
+                        for cnpj, dados_base_fundo in dados_base_do_dia.items():
+                            todos_os_tickers.update(dados_base_fundo["df_base"]["Ticker"].tolist())
+                        
+                        tickers_list_sa = [f"{t}.SA" for t in todos_os_tickers]
+                
+                        # 2. Busca todos os preços de uma só vez (a chamada única e eficiente)
+                        precos_hoje_dict = {}
+                        if tickers_list_sa:
+                            dados_yf = yf.download(tickers=tickers_list_sa, period="2d", progress=False, auto_adjust=True)
+                            if not dados_yf.empty and 'Close' in dados_yf:
+                                precos_hoje_series = dados_yf['Close'].iloc[-1]
+                                # Converte para dicionário e remove o sufixo .SA das chaves
+                                precos_hoje_dict = {k.replace('.SA', ''): v for k, v in precos_hoje_series.to_dict().items()}
+                
+                        # 3. Calcula as métricas para cada fundo, agora passando os preços prontos
+                        for cnpj, dados_base_fundo in dados_base_do_dia.items():
+                            resultados = recalcular_metricas(
+                                dados_base_fundo["df_base"],
+                                dados_base_fundo["cota_ontem"],
+                                dados_base_fundo["qtd_cotas"],
+                                dados_base_fundo["pl"],
+                                precos_hoje_dict  # Passa o dicionário de preços para a função
+                            )
+                            st.session_state.dados_calculados_cache[cnpj] = resultados
+                
+                    st.session_state.global_last_update_time = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
+                    st.rerun()
             if cnpj_selecionado in st.session_state.dados_calculados_cache:
                 with summary_container:
                     st.subheader("Resumo das Variações dos Fundos")
