@@ -55,6 +55,10 @@ dados_setoriais = [
     {"SETOR": "Material Rodoviário", "CODIGO": "RAPT4"},
     {"SETOR": "Material Rodoviário", "CODIGO": "TUPY3"},
 
+    # Material Rodoviário
+    {"SETOR": "Telecom", "CODIGO": "VIVT3"},
+    {"SETOR": "Telecom", "CODIGO": "TIMS3"},
+    
     # BDRs
     {"SETOR": "BDR – Setor internacional", "CODIGO": "AAPL34"},
     {"SETOR": "BDR – Setor internacional", "CODIGO": "AMZO34"},
