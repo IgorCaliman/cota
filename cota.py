@@ -120,7 +120,12 @@ FUNDOS = {
         "data_inicio_str": "07/04/2025",
         "data_inicio_api": "2025-04-07"
     },
-    "FD52204085000123": {"nome": "MINAS ONE FIA"},
+    "FD52204085000123": {
+        "nome": "MINAS ONE FIA",
+        "cota_inicio": 1.0,  # <-- ATENÇÃO: Ajuste para a cota inicial real do fundo
+        "cota_ytd": 0.42874140, # Cota do último dia útil de 2024, conforme informado
+        "data_inicio_str": "29/09/2023" # <-- ATENÇÃO: Ajuste para a data de início real
+    },
     "FD48992682000192": {"nome": "ALFA HORIZON FIA"},
 }
 COLUNAS_EXIBIDAS = ["Ticker", "Quantidade de Ações", "Preço Ontem (R$)", "Preço Hoje (R$)", "% no Fundo",
@@ -570,6 +575,26 @@ if autenticar_usuario():
                     col1.metric(f"Rent. Início ({data_inicio_str_div})", f"{rent_inicio_div:.2%}")
                     col2.metric("CDI no Período", f"{cdi_periodo:.2%}")
                     col3.metric("IBOV no Período", f"{ibov_periodo:.2%}")
+
+                                # NOVO BLOCO PARA O MINAS ONE FIA
+                elif cnpj_selecionado == "FD52204085000123":
+                    st.divider()
+                    st.subheader("Análise de Rentabilidade — MINAS ONE FIA")
+                    
+                    cota_hoje = dados_calculados['cota_hoje']
+                    ref_one = FUNDOS["FD52204085000123"]
+                    
+                    # Cálculo da rentabilidade YTD (Year-to-Date)
+                    rent_ytd_one = (cota_hoje / ref_one['cota_ytd'] - 1) if ref_one.get('cota_ytd', 0) > 0 else 0
+                    
+                    # Cálculo da rentabilidade desde o início
+                    rent_inicio_one = (cota_hoje / ref_one['cota_inicio'] - 1) if ref_one.get('cota_inicio', 0) > 0 else 0
+                    label_inicio_one = ref_one.get('data_inicio_str', 'Início')
+                    
+                    col_one_1, col_one_2 = st.columns(2)
+                    col_one_1.metric("Rent. YTD", f"{rent_ytd_one:.2%}")
+                    col_one_2.metric(f"Rent. Início ({label_inicio_one})", f"{rent_inicio_one:.2%}")
+
 
                 # O expander de parâmetros agora fica fora do bloco if/elif, 
                 # para aparecer para todos os fundos.
