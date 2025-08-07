@@ -560,8 +560,11 @@ if autenticar_usuario():
                     col_dia_1.metric("Variação da Cota (D)", f"{variacao_cota_dia:.2%}")
                     
                     # Exibe a variação do IBOV na segunda coluna
-                    col_dia_2.metric("Variação IBOV (D)", f"{variacao_ibov_dia:.2%}", 
-                                     delta_color=("green" if variacao_ibov_dia >= 0 else "red")) # Opcional: cor dinâmica
+                    col_dia_2.metric(
+                        label="Variação IBOV (D)",
+                        value=f"{variacao_ibov_dia:.2%}",
+                        delta=f"{variacao_ibov_dia:.2%}"  # O valor do delta que será colorido automaticamente
+                    )
                     
                     # --- FIM DA SEÇÃO MODIFICADA ---
                     
