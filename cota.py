@@ -315,34 +315,42 @@ def ultimo_dia_util(delay: int = 1) -> str:
     while not cal.is_working_day(d.date()): d -= timedelta(days=1)
     return d.strftime("%Y-%m-%d")
 
+import yfinance as yf
+import pandas as pd
+
 def get_ibov_variacao_dia():
     """
-    Busca a variação percentual do IBOVESPA no dia atual em relação ao fechamento anterior.
-    Retorna 0.0 em caso de erro ou se o mercado estiver fechado.
+    Busca a variação percentual do IBOVESPA no dia de forma mais robusta.
+    Compara o último preço disponível com o fechamento do dia útil anterior.
     """
     try:
-        # Define o ticker do IBOVESPA no Yahoo Finance
-        ticker = "^BVSP"
+        # Usar o objeto Ticker é mais estável para buscas recorrentes
+        ibov = yf.Ticker("^BVSP")
         
-        # Pega as duas últimas datas úteis
-        hoje = datetime.now()
-        # Busca um range de 5 dias para garantir que teremos pregão anterior e dados do dia
-        dados_ibov = yf.download(ticker, period="5d", progress=False)
-        
-        if len(dados_ibov) < 2:
-            return 0.0 # Não há dados suficientes
+        # Pede o histórico dos últimos 2 dias de pregão. 
+        # yfinance é inteligente para buscar o dia atual (se o pregão estiver aberto) e o anterior.
+        hist = ibov.history(period="2d")
 
-        # Pega o fechamento do penúltimo dia (fechamento anterior) e o último preço disponível
-        fechamento_anterior = dados_ibov['Close'].iloc[-2]
-        ultimo_preco = dados_ibov['Close'].iloc[-1]
+        # Se não recebermos pelo menos 2 dias, não há como comparar.
+        # Isso pode acontecer em feriados ou problemas na API.
+        if len(hist) < 2:
+            print("Não foi possível obter o histórico de 2 dias para o IBOV.")
+            return 0.0
+
+        # O fechamento anterior é o 'Close' da primeira linha (D-1)
+        fechamento_anterior = hist['Close'].iloc[0]
         
+        # O último preço é o 'Close' da última linha (D)
+        ultimo_preco = hist['Close'].iloc[-1]
+
         if fechamento_anterior > 0:
-            variacao = (ultimo_preco / fechamento_anterior) - 1
+            variacao = (ultimo_preco / ultimo_preco) - 1
             return variacao
         else:
-            return 0.0
-            
+            return 0.0 # Evita divisão por zero
+    
     except Exception as e:
+        # Se qualquer erro ocorrer, retorna 0 e imprime o erro no console para debug
         print(f"Erro ao buscar variação do IBOV: {e}")
         return 0.0
 
@@ -547,27 +555,31 @@ if autenticar_usuario():
 
                 # ======================= BLOCO DE ANÁLISE CORRIGIDO =======================
                 if cnpj_selecionado == CNPJ_MINAS_FIA:
-                    st.divider()
-                    cota_hoje = dados_calculados['cota_hoje']
-                                      
-                    variacao_cota_dia = dados_calculados.get('variacao_dia', 0.0) # Usando .get() para segurança
-                    variacao_ibov_dia = get_ibov_variacao_dia() # NOVA LINHA: Chama a função do IBOV
+                    # --- SEÇÃO DE MÉTRICAS PRINCIPAIS (CORRIGIDA) ---
                 
-                    st.subheader("Desempenho no Dia") # NOVA LINHA: Um subheader para as métricas do dia
-                    col_dia_1, col_dia_2 = st.columns(2) # NOVA LINHA: Cria duas colunas
+                    # 1. Buscar todos os dados necessários primeiro.
+                    #    Estou supondo os nomes das chaves no seu dicionário 'dados_calculados'.
+                    #    Ajuste os nomes 'cota_ontem' e 'variacao_dia' se forem diferentes.
+                    cota_hoje = dados_calculados.get('cota_hoje', 0)
+                    cota_ontem = dados_calculados.get('cota_ontem', 0) 
+                    variacao_cota = dados_calculados.get('variacao_dia', 0)
+                    variacao_ibov_hoje = get_ibov_variacao_dia() # Chama a função do IBOV
+                
+                    # 2. Criar as 4 métricas principais lado a lado.
+                    col1, col2, col3, col4 = st.columns(4)
                     
-                    # Exibe a variação da cota na primeira coluna
-                    col_dia_1.metric("Variação da Cota (D)", f"{variacao_cota_dia:.2%}")
+                    col1.metric("Cota de Ontem", f"R$ {cota_ontem:.6f}")
+                    col2.metric("Cota Estimada Hoje", f"R$ {cota_hoje:.6f}")
+                    col3.metric("Variação da Cota", f"{variacao_cota:.4%}")
+                    col4.metric("Variação IBOV hoje", f"{variacao_ibov_hoje:.2%}")
+                
+                    # --- FIM DA SEÇÃO DE MÉTRICAS ---
                     
-                    # Exibe a variação do IBOV na segunda coluna
-                    col_dia_2.metric(
-                        label="Variação IBOV (D)",
-                        value=f"{variacao_ibov_dia:.2%}",
-                        delta=f"{variacao_ibov_dia:.2%}"  # O valor do delta que será colorido automaticamente
-                    )
-                    
-                    # --- FIM DA SEÇÃO MODIFICADA ---
-                    
+                    st.divider()
+                
+                    # O restante do seu código para a análise de rentabilidade continua normalmente.
+                    # A seção "Desempenho no Dia" foi completamente REMOVIDA daqui.
+                
                     ref_minas_fia = FUNDOS[CNPJ_MINAS_FIA]
                     rent_ytd = (cota_hoje / ref_minas_fia['cota_ytd'] - 1) if ref_minas_fia['cota_ytd'] > 0 else 0
                     rent_inicio = (cota_hoje / ref_minas_fia['cota_inicio'] - 1) if ref_minas_fia[
@@ -600,7 +612,6 @@ if autenticar_usuario():
                 
                     st.metric("Performance vs CDI (desde 15/10/2020)", valor_display_cdi,
                               delta=f"{percentual_cdi:.2%}", delta_color="off")
-
 
                 # O 'elif' está no mesmo nível do 'if', garantindo que ele será checado corretamente
                 elif cnpj_selecionado == "FD60096402000163":
