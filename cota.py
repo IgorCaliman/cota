@@ -541,10 +541,10 @@ if autenticar_usuario():
                 variacao_ibov_hoje = get_ibov_variacao_dia()
                 
                 c1, c2, c3, c4 = st.columns(4)
-                c1.metric("Cota de Ontem", f"R$ {cota_ontem_base:.6f}")
-                c2.metric("Cota Estimada Hoje", f"R$ {dados_calculados['cota_hoje']:.6f}")
+                c1.metric("Cota de Ontem", f"R$ {cota_ontem_base:.4f}")
+                c2.metric("Cota Estimada Hoje", f"R$ {dados_calculados['cota_hoje']:.4f}")
                 c3.metric("Variação da Cota", f"{dados_calculados['var_cota']:.4%}")
-                c4.metric("Variação IBOV hoje", f"{variacao_ibov_hoje:.2%}")
+                c4.metric("Variação IBOV hoje", f"{variacao_ibov_hoje:.4%}")
                     
 
                 # ======================= BLOCO DE ANÁLISE CORRIGIDO =======================
