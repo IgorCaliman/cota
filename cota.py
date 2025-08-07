@@ -538,25 +538,20 @@ if autenticar_usuario():
                                                                                                                    "Variação Ponderada (%)"]),
                     use_container_width=True, hide_index=True)
 
-                c1, c2, c3 = st.columns(3)
+                variacao_ibov_hoje = get_ibov_variacao_dia()
+                
+                c1, c2, c3, c4 = st.columns(4)
                 c1.metric("Cota de Ontem", f"R$ {cota_ontem_base:.6f}")
                 c2.metric("Cota Estimada Hoje", f"R$ {dados_calculados['cota_hoje']:.6f}")
                 c3.metric("Variação da Cota", f"{dados_calculados['var_cota']:.4%}")
+                c4.metric("Variação IBOV hoje", f"{variacao_ibov_hoje:.2%}")
+                    
 
                 # ======================= BLOCO DE ANÁLISE CORRIGIDO =======================
                 if cnpj_selecionado == CNPJ_MINAS_FIA:
                     cota_hoje = dados_calculados.get('cota_hoje', 0)
                     cota_ontem = dados_calculados.get('cota_ontem', 0) 
                     variacao_cota = dados_calculados.get('variacao_dia', 0)
-                    
-                    variacao_ibov_hoje = get_ibov_variacao_dia()
-                    
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    col1.metric("Cota de Ontem", f"R$ {dados_calculados.get('cota_ontem', 0):.6f}")
-                    col2.metric("Cota Estimada Hoje", f"R$ {dados_calculados.get('cota_hoje', 0):.6f}")
-                    col3.metric("Variação da Cota", f"{dados_calculados.get('variacao_dia', 0):.4%}")
-                    col4.metric("Variação IBOV hoje", f"{variacao_ibov_hoje:.2%}")
                     
                     st.divider()
                                 
