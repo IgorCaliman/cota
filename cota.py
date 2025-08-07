@@ -508,6 +508,8 @@ if autenticar_usuario():
                             fund_name = FUNDOS[cnpj]["nome"]
                             variation = st.session_state.dados_calculados_cache[cnpj]['var_cota']
                             summary_data.append({"Fundo": fund_name, "Variação da Cota": variation})
+                    variacao_ibov_hoje = get_ibov_variacao_dia()
+                    summary_data.append({"Fundo": "IBOVESPA", "Variação da Cota": variacao_ibov_hoje})
 
                     if summary_data:
                         summary_df = pd.DataFrame(summary_data)
