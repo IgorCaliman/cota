@@ -545,31 +545,21 @@ if autenticar_usuario():
 
                 # ======================= BLOCO DE ANÁLISE CORRIGIDO =======================
                 if cnpj_selecionado == CNPJ_MINAS_FIA:
-                    # --- SEÇÃO DE MÉTRICAS PRINCIPAIS (CORRIGIDA) ---
-                
-                    # 1. Buscar todos os dados necessários primeiro.
-                    #    Estou supondo os nomes das chaves no seu dicionário 'dados_calculados'.
-                    #    Ajuste os nomes 'cota_ontem' e 'variacao_dia' se forem diferentes.
                     cota_hoje = dados_calculados.get('cota_hoje', 0)
                     cota_ontem = dados_calculados.get('cota_ontem', 0) 
                     variacao_cota = dados_calculados.get('variacao_dia', 0)
-                    variacao_ibov_hoje = get_ibov_variacao_dia() # Chama a função do IBOV
-                
-                    # 2. Criar as 4 métricas principais lado a lado.
+                    
+                    variacao_ibov_hoje = get_ibov_variacao_dia()
+                    
                     col1, col2, col3, col4 = st.columns(4)
                     
-                    col1.metric("Cota de Ontem", f"R$ {cota_ontem:.6f}")
-                    col2.metric("Cota Estimada Hoje", f"R$ {cota_hoje:.6f}")
-                    col3.metric("Variação da Cota", f"{variacao_cota:.4%}")
+                    col1.metric("Cota de Ontem", f"R$ {dados_calculados.get('cota_ontem', 0):.6f}")
+                    col2.metric("Cota Estimada Hoje", f"R$ {dados_calculados.get('cota_hoje', 0):.6f}")
+                    col3.metric("Variação da Cota", f"{dados_calculados.get('variacao_dia', 0):.4%}")
                     col4.metric("Variação IBOV hoje", f"{variacao_ibov_hoje:.2%}")
-                
-                    # --- FIM DA SEÇÃO DE MÉTRICAS ---
                     
                     st.divider()
-                
-                    # O restante do seu código para a análise de rentabilidade continua normalmente.
-                    # A seção "Desempenho no Dia" foi completamente REMOVIDA daqui.
-                
+                                
                     ref_minas_fia = FUNDOS[CNPJ_MINAS_FIA]
                     rent_ytd = (cota_hoje / ref_minas_fia['cota_ytd'] - 1) if ref_minas_fia['cota_ytd'] > 0 else 0
                     rent_inicio = (cota_hoje / ref_minas_fia['cota_inicio'] - 1) if ref_minas_fia[
