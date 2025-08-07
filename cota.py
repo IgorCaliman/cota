@@ -320,37 +320,27 @@ import pandas as pd
 
 def get_ibov_variacao_dia():
     """
-    Busca a variação percentual do IBOVESPA no dia de forma mais robusta.
+    Busca a variação percentual do IBOVESPA no dia de forma robusta.
     Compara o último preço disponível com o fechamento do dia útil anterior.
     """
     try:
-        # Usar o objeto Ticker é mais estável para buscas recorrentes
         ibov = yf.Ticker("^BVSP")
-        
-        # Pede o histórico dos últimos 2 dias de pregão. 
-        # yfinance é inteligente para buscar o dia atual (se o pregão estiver aberto) e o anterior.
         hist = ibov.history(period="2d")
 
-        # Se não recebermos pelo menos 2 dias, não há como comparar.
-        # Isso pode acontecer em feriados ou problemas na API.
         if len(hist) < 2:
-            print("Não foi possível obter o histórico de 2 dias para o IBOV.")
             return 0.0
 
-        # O fechamento anterior é o 'Close' da primeira linha (D-1)
         fechamento_anterior = hist['Close'].iloc[0]
-        
-        # O último preço é o 'Close' da última linha (D)
         ultimo_preco = hist['Close'].iloc[-1]
 
         if fechamento_anterior > 0:
-            variacao = (ultimo_preco / ultimo_preco) - 1
+            # ESTA LINHA ESTAVA ERRADA E FOI CORRIGIDA
+            variacao = (ultimo_preco / fechamento_anterior) - 1
             return variacao
         else:
-            return 0.0 # Evita divisão por zero
+            return 0.0
     
     except Exception as e:
-        # Se qualquer erro ocorrer, retorna 0 e imprime o erro no console para debug
         print(f"Erro ao buscar variação do IBOV: {e}")
         return 0.0
 
