@@ -315,6 +315,36 @@ def ultimo_dia_util(delay: int = 1) -> str:
     while not cal.is_working_day(d.date()): d -= timedelta(days=1)
     return d.strftime("%Y-%m-%d")
 
+def get_ibov_variacao_dia():
+    """
+    Busca a variação percentual do IBOVESPA no dia atual em relação ao fechamento anterior.
+    Retorna 0.0 em caso de erro ou se o mercado estiver fechado.
+    """
+    try:
+        # Define o ticker do IBOVESPA no Yahoo Finance
+        ticker = "^BVSP"
+        
+        # Pega as duas últimas datas úteis
+        hoje = datetime.now()
+        # Busca um range de 5 dias para garantir que teremos pregão anterior e dados do dia
+        dados_ibov = yf.download(ticker, period="5d", progress=False)
+        
+        if len(dados_ibov) < 2:
+            return 0.0 # Não há dados suficientes
+
+        # Pega o fechamento do penúltimo dia (fechamento anterior) e o último preço disponível
+        fechamento_anterior = dados_ibov['Close'].iloc[-2]
+        ultimo_preco = dados_ibov['Close'].iloc[-1]
+        
+        if fechamento_anterior > 0:
+            variacao = (ultimo_preco / fechamento_anterior) - 1
+            return variacao
+        else:
+            return 0.0
+            
+    except Exception as e:
+        print(f"Erro ao buscar variação do IBOV: {e}")
+        return 0.0
 
 @st.cache_data(ttl=3600)
 def gerar_token():
@@ -519,6 +549,22 @@ if autenticar_usuario():
                 if cnpj_selecionado == CNPJ_MINAS_FIA:
                     st.divider()
                     cota_hoje = dados_calculados['cota_hoje']
+                                      
+                    variacao_cota_dia = dados_calculados.get('variacao_dia', 0.0) # Usando .get() para segurança
+                    variacao_ibov_dia = get_ibov_variacao_dia() # NOVA LINHA: Chama a função do IBOV
+                
+                    st.subheader("Desempenho no Dia") # NOVA LINHA: Um subheader para as métricas do dia
+                    col_dia_1, col_dia_2 = st.columns(2) # NOVA LINHA: Cria duas colunas
+                    
+                    # Exibe a variação da cota na primeira coluna
+                    col_dia_1.metric("Variação da Cota (D)", f"{variacao_cota_dia:.2%}")
+                    
+                    # Exibe a variação do IBOV na segunda coluna
+                    col_dia_2.metric("Variação IBOV (D)", f"{variacao_ibov_dia:.2%}", 
+                                     delta_color=("green" if variacao_ibov_dia >= 0 else "red")) # Opcional: cor dinâmica
+                    
+                    # --- FIM DA SEÇÃO MODIFICADA ---
+                    
                     ref_minas_fia = FUNDOS[CNPJ_MINAS_FIA]
                     rent_ytd = (cota_hoje / ref_minas_fia['cota_ytd'] - 1) if ref_minas_fia['cota_ytd'] > 0 else 0
                     rent_inicio = (cota_hoje / ref_minas_fia['cota_inicio'] - 1) if ref_minas_fia[
@@ -532,25 +578,26 @@ if autenticar_usuario():
                     falta_marca_dagua = (marca_dagua / cota_hoje - 1) if cota_hoje > 0 else 0
                     ibov_desde_marca_dagua = get_ibov_acumulado(data_inicio=DATA_MARCA_DAGUA_API, data_fim=hoje_dt)
                     falta_total = falta_marca_dagua + ibov_desde_marca_dagua
-
+                
                     st.subheader("Análise de Rentabilidade — MINAS FIA")
                     m1, m2, m3, m4 = st.columns(4)
                     m1.metric("Rent. YTD", f"{rent_ytd:.2%}")
                     m2.metric("Rent. Início (15/10/20)", f"{rent_inicio:.2%}")
                     m3.metric("CDI no período (15/10/20)", f"{cdi_acumulado:.2%}")
                     m4.metric("IBOV no período (15/10/20)", f"{ibov_acumulado_inicio:.2%}")
-
+                
                     md_label = f"M. d'Água ({DATA_MARCA_DAGUA_STR})"
                     col_md_1, col_md_2, col_md_3 = st.columns(3)
                     col_md_1.metric(f"Falta p/ {md_label}", f"{falta_marca_dagua:.2%}")
                     col_md_2.metric(f"IBOV desde {md_label}", f"{ibov_desde_marca_dagua:.2%}")
                     col_md_3.metric(f"Falta p/ {md_label} + IBOV", f"{falta_total:.2%}")
-
+                
                     texto_relativo_cdi = "acima do CDI" if percentual_cdi >= 0 else "abaixo do CDI"
                     valor_display_cdi = f"{abs(percentual_cdi):.2%} {texto_relativo_cdi}"
-
+                
                     st.metric("Performance vs CDI (desde 15/10/2020)", valor_display_cdi,
                               delta=f"{percentual_cdi:.2%}", delta_color="off")
+
 
                 # O 'elif' está no mesmo nível do 'if', garantindo que ele será checado corretamente
                 elif cnpj_selecionado == "FD60096402000163":
