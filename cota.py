@@ -155,12 +155,7 @@ def credenciais_inseridas():
 
 
 def autenticar_usuario():
-    if "authenticated" not in st.session_state: st.session_state["authenticated"] = False
-    if st.session_state["authenticated"]: return True
-    st.text_input(label="Usuário", key="user_input")
-    st.text_input(label="Senha", type="password", key="password_input")
-    if st.button("Entrar"): credenciais_inseridas(); st.rerun()
-    return False
+    return True
 
 
 # ============================== FUNÇÕES DE PROCESSAMENTO DE DADOS ============================== #
