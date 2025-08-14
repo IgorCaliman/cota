@@ -12,6 +12,14 @@ from datetime import timedelta, datetime
 from dateutil.relativedelta import relativedelta
 from zoneinfo import ZoneInfo
 from workalendar.america import Brazil
+from streamlit_autorefresh import st_autorefresh
+
+# Toggle na UI para ligar/desligar o auto refresh
+auto = st.sidebar.toggle("🔁 Atualização automática (1 min)", value=False, key="auto_refresh")
+
+# Se ligado, força um rerun a cada 60s
+if auto:
+    st_autorefresh(interval=60_000, limit=None, key="auto_refresh_counter")
 
 # ============================== DADOS DE CLASSIFICAÇÃO SETORIAL ==============================
 # Versão final da lista de empresas e setores, com todas as modificações aplicadas.
@@ -236,7 +244,7 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl, precos_hoje_dict):
                        "patrimonio": patrimonio, "qtd_cotas": qtd_cotas}}
 
 
-@st.cache_data(show_spinner="Buscando preços e calculando performance...", ttl=900)
+@st.cache_data(show_spinner="Buscando preços e calculando performance...", ttl=60)
 def buscar_precos_empresas(tickers: list[str]):
     """
     Busca dados de D-1, D-0, volatilidade e a performance em vários períodos.
@@ -450,9 +458,9 @@ if autenticar_usuario():
                 btn1, btn2 = st.columns(2)
 
                 with btn1:
-                    atualizar = st.button("🔄 Atualizar Preços dos Fundos")
-                    if st.session_state.global_last_update_time:
-                        st.caption(f"Preços atualizados às {st.session_state.global_last_update_time:%H:%M:%S}")
+                    # se o auto estiver ligado, atualiza em todo rerun
+                    if st.session_state.get("auto_refresh"):
+                        atualizar = True
 
                 with btn2:
                     if st.button("📥 Puxar Carteira BTG"):
