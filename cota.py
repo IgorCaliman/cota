@@ -410,8 +410,7 @@ if autenticar_usuario():
     data_formatada = datetime.strptime(data_carteira_str, '%Y-%m-%d').strftime('%d/%m/%Y')
     st.title(f"AF INVEST | Análise de Carteiras e Ações")
     st.caption(f"Posição dos fundos referente ao dia: {data_formatada}")
-    st.write(f"Usuário: **{st.session_state.get('username', '').capitalize()}**")
-
+    
     tab_fundos, tab_empresas = st.tabs(["📊 Análise de Fundos", "📈 Acompanhamento de Empresas"])
 
     # ============================== ABA DE ANÁLISE DE FUNDOS ============================== #
