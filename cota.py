@@ -407,12 +407,7 @@ def css_var(v):
 # ============================== INTERFACE STREAMLIT ============================== #
 st.set_page_config("Carteiras RV AF INVEST", layout="wide")
 
-# 🔁 Auto-atualização (não limpa nenhum cache)
-auto = st.toggle("🔁 Atualização automática (1 min)", value=False, key="auto_refresh")
 
-if auto:
-    # Faz apenas um rerun da app a cada 60s (mantém session_state e caches)
-    st_autorefresh(interval=60_000, key="auto_refresh_counter")
 
 
 if autenticar_usuario():
@@ -422,6 +417,13 @@ if autenticar_usuario():
     st.caption(f"Posição dos fundos referente ao dia: {data_formatada}")
     
     tab_fundos, tab_empresas = st.tabs(["📊 Análise de Fundos", "📈 Acompanhamento de Empresas"])
+
+    # 🔁 Auto-atualização (não limpa nenhum cache)
+    auto = st.toggle("🔁 Atualização automática (1 min)", value=False, key="auto_refresh")
+    
+    if auto:
+        # Faz apenas um rerun da app a cada 60s (mantém session_state e caches)
+        st_autorefresh(interval=60_000, key="auto_refresh_counter")
 
     # ============================== ABA DE ANÁLISE DE FUNDOS ============================== #
     with tab_fundos:
