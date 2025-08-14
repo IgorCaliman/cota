@@ -415,15 +415,19 @@ if autenticar_usuario():
     data_formatada = datetime.strptime(data_carteira_str, '%Y-%m-%d').strftime('%d/%m/%Y')
     st.title(f"AF INVEST | Análise de Carteiras e Ações")
     st.caption(f"Posição dos fundos referente ao dia: {data_formatada}")
+
+        # <<< COLE ESTE BLOCO AQUI >>>
+    c1, c2, c3 = st.columns([1, 2, 1])  # só para centralizar o controle
+    with c2:
+        auto = st.toggle("🔁 Atualização automática (1 min)",
+                         value=st.session_state.get("auto_refresh", False),
+                         key="auto_refresh",
+                         help="Atualiza apenas os preços a cada 60s; as carteiras do BTG ficam no cache diário.")
+    if auto:
+        st_autorefresh(interval=60_000, key="auto_refresh_counter")
+    # <<< FIM DO BLOCO >>>
     
     tab_fundos, tab_empresas = st.tabs(["📊 Análise de Fundos", "📈 Acompanhamento de Empresas"])
-
-    # 🔁 Auto-atualização (não limpa nenhum cache)
-    auto = st.toggle("🔁 Atualização automática (1 min)", value=False, key="auto_refresh")
-    
-    if auto:
-        # Faz apenas um rerun da app a cada 60s (mantém session_state e caches)
-        st_autorefresh(interval=60_000, key="auto_refresh_counter")
 
     # ============================== ABA DE ANÁLISE DE FUNDOS ============================== #
     with tab_fundos:
