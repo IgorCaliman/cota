@@ -12,6 +12,8 @@ from datetime import timedelta, datetime
 from dateutil.relativedelta import relativedelta
 from zoneinfo import ZoneInfo
 from workalendar.america import Brazil
+from streamlit_autorefresh import st_autorefresh
+
 
 # ============================== DADOS DE CLASSIFICAÇÃO SETORIAL ==============================
 # Versão final da lista de empresas e setores, com todas as modificações aplicadas.
@@ -236,7 +238,7 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl, precos_hoje_dict):
                        "patrimonio": patrimonio, "qtd_cotas": qtd_cotas}}
 
 
-@st.cache_data(show_spinner="Buscando preços e calculando performance...", ttl=900)
+@st.cache_data(show_spinner="Buscando preços e calculando performance...", ttl=60)
 def buscar_precos_empresas(tickers: list[str]):
     """
     Busca dados de D-1, D-0, volatilidade e a performance em vários períodos.
@@ -405,6 +407,14 @@ def css_var(v):
 # ============================== INTERFACE STREAMLIT ============================== #
 st.set_page_config("Carteiras RV AF INVEST", layout="wide")
 
+# 🔁 Auto-atualização (não limpa nenhum cache)
+auto = st.toggle("🔁 Atualização automática (1 min)", value=False, key="auto_refresh")
+
+if auto:
+    # Faz apenas um rerun da app a cada 60s (mantém session_state e caches)
+    st_autorefresh(interval=60_000, key="auto_refresh_counter")
+
+
 if autenticar_usuario():
     data_carteira_str = ultimo_dia_util()
     data_formatada = datetime.strptime(data_carteira_str, '%Y-%m-%d').strftime('%d/%m/%Y')
@@ -443,23 +453,33 @@ if autenticar_usuario():
                                             format_func=lambda c: nomes_fundos.get(c, "Nome não encontrado"),
                                             key="fundo_selectbox")
 
-            col_header, col_actions = st.columns([3, 2])
-            with col_header:
-                st.subheader(f"📊 Detalhes do Fundo — {FUNDOS[cnpj_selecionado]['nome']}")
-            with col_actions:
-                btn1, btn2 = st.columns(2)
+            # Título do bloco
+            st.subheader(f"📊 Detalhes do Fundo — {FUNDOS[cnpj_selecionado]['nome']}")
+            
+            # Botão de atualizar PREÇOS centralizado
+            c_left, c_mid, c_right = st.columns([1, 2, 1])
+            with c_mid:
+                atualizar = st.button("🔄 Atualizar Preços dos Fundos",
+                                      use_container_width=True,
+                                      key="btn_update_fundos_center")
+                if st.session_state.get("global_last_update_time"):
+                    st.caption(f"Preços atualizados às {st.session_state.global_last_update_time:%H:%M:%S}")
+            
+            # Se auto-refresh estiver ligado, força atualizar (não mexe no cache do BTG)
+            if st.session_state.get("auto_refresh"):
+                atualizar = True
+            
+            # (Opcional) Deixe o 'Puxar Carteira BTG' logo abaixo, também centralizado
+            c2_left, c2_mid, c2_right = st.columns([1, 2, 1])
+            with c2_mid:
+                if st.button("📥 Puxar Carteira BTG",
+                             use_container_width=True,
+                             key="btn_puxar_btg_center"):
+                    with st.spinner("Limpando cache e buscando novamente os dados do BTG..."):
+                        st.cache_data.clear()   # limpa apenas caches do @st.cache_data
+                    st.rerun()
+                st.caption("Puxe quando o preço D-1 parecer estranho.")
 
-                with btn1:
-                    atualizar = st.button("🔄 Atualizar Preços dos Fundos")
-                    if st.session_state.global_last_update_time:
-                        st.caption(f"Preços atualizados às {st.session_state.global_last_update_time:%H:%M:%S}")
-
-                with btn2:
-                    if st.button("📥 Puxar Carteira BTG"):
-                        with st.spinner("Limpando cache e buscando novamente os dados do BTG..."):
-                            st.cache_data.clear()
-                        st.rerun()
-                    st.caption("Puxe quando o preço D-1 parecer estranho.")
 
                 is_cache_incomplete = len(st.session_state.dados_calculados_cache) != len(dados_base_do_dia)
                 if atualizar or is_cache_incomplete:
