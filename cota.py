@@ -659,22 +659,22 @@ if autenticar_usuario():
                     st.write(f"🧮 Quantidade de cotas:  {ex['qtd_cotas']:,.2f}")
 
     # ============================== ABA DE ACOMPANHAMENTO DE EMPRESAS ============================== #
-    with tab_empresas:
-        if 'last_update_empresas' not in st.session_state:
-            st.session_state.last_update_empresas = None
-
-        col_btn, col_time = st.columns([1, 4])
-        with col_btn:
-            if st.button("🔄 Atualizar Preços", key="update_empresas"):
-                buscar_precos_empresas.clear()
-                st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
-                st.rerun()
-
-        with col_time:
-            if st.session_state.last_update_empresas:
-                st.caption(f"Última atualização: **{st.session_state.last_update_empresas.strftime('%d/%m/%Y às %H:%M:%S')}**")
-        
-        st.markdown("---")
+    # Botão centralizado + carimbo de hora
+    b1, b2, b3 = st.columns([1, 2, 1])
+    with b2:
+        if st.button("🔄 Atualizar Preços", key="update_empresas_center", use_container_width=True):
+            buscar_precos_empresas.clear()  # limpa só o cache de preços das empresas
+            st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
+            st.rerun()
+    
+        if st.session_state.last_update_empresas:
+            st.caption(f"Última atualização: **{st.session_state.last_update_empresas.strftime('%d/%m/%Y às %H:%M:%S')}**")
+    
+    st.markdown("---")
+    
+    # Se auto estiver ligado, atualize o carimbo a cada rerun (sem mexer nas carteiras)
+    if st.session_state.get("auto_refresh"):
+        st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
 
         ordem_desejada = [
             "Grupo Simpar",
