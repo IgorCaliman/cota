@@ -13,6 +13,9 @@ from dateutil.relativedelta import relativedelta
 from zoneinfo import ZoneInfo
 from workalendar.america import Brazil
 
+import altair as alt
+from pathlib import Path
+
 # ============================== DADOS DE CLASSIFICAÇÃO SETORIAL ==============================
 # Versão final da lista de empresas e setores, com todas as modificações aplicadas.
 
@@ -152,6 +155,26 @@ def credenciais_inseridas():
             pass
         else:
             st.error("Usuário ou senha inválido.")
+
+@st.cache_data(ttl=3600)
+def carregar_b100():
+    """
+    Tenta ler B100.xlsx do próprio repositório (pasta raiz ou subpastas comuns).
+    Como fallback, usa uma URL de RAW do GitHub em st.secrets['B100_URL'].
+    """
+    candidatos = ["B100.xlsx", "data/B100.xlsx", "assets/B100.xlsx"]
+    for caminho in candidatos:
+        if Path(caminho).exists():
+            return pd.read_excel(caminho, decimal=",")
+    url = st.secrets.get("B100_URL", "")
+    if url:
+        try:
+            resp = requests.get(url, timeout=15)
+            resp.raise_for_status()
+            return pd.read_excel(io.BytesIO(resp.content), decimal=",")
+        except Exception:
+            pass
+    return pd.DataFrame()
 
 
 def autenticar_usuario():
@@ -583,6 +606,46 @@ if autenticar_usuario():
                 
                     st.metric("Performance vs CDI (desde 15/10/2020)", valor_display_cdi,
                               delta=f"{percentual_cdi:.2%}", delta_color="off")
+                    df_b100 = carregar_b100()
+                    if not df_b100.empty:
+                        # Normaliza colunas e datas
+                        df_b100.columns = [c.strip() for c in df_b100.columns]
+                        if not {"Data", "Minas", "IBOV"}.issubset(set(df_b100.columns)):
+                            st.warning("B100.xlsx não tem as colunas esperadas: Data, Minas, IBOV.")
+                        else:
+                            df_b100["Data"] = pd.to_datetime(df_b100["Data"], dayfirst=True, errors="coerce")
+                            df_plot = df_b100.melt("Data",
+                                                   value_vars=["Minas", "IBOV"],
+                                                   var_name="Série", value_name="Valor").dropna()
+                
+                            st.divider()
+                            st.subheader("B100 — Minas vs Ibovespa")
+                            chart = (
+                                alt.Chart(df_plot)
+                                .mark_line(strokeWidth=2)
+                                .encode(
+                                    x=alt.X("Data:T", title="Data"),
+                                    y=alt.Y("Valor:Q",
+                                            title="Índice (base=100)",
+                                            scale=alt.Scale(domainMin=90)),
+                                    color=alt.Color("Série:N",
+                                                    scale=alt.Scale(
+                                                        domain=["Minas", "IBOV"],
+                                                        range=["#d62728", "#1f77b4"]  # vermelho / azul
+                                                    )),
+                                    tooltip=[
+                                        alt.Tooltip("Data:T", title="Data"),
+                                        alt.Tooltip("Série:N", title="Série"),
+                                        alt.Tooltip("Valor:Q", title="Valor", format=".1f")
+                                    ],
+                                )
+                                .properties(height=340)
+                            )
+                            st.altair_chart(chart, use_container_width=True)
+                    else:
+                        st.info("Arquivo B100.xlsx não encontrado no repositório do app. "
+                                "Se estiver em outra pasta, ajuste o caminho na função carregar_b100() "
+                                "ou defina st.secrets['B100_URL'] com a URL RAW do GitHub.")
 
                 # O 'elif' está no mesmo nível do 'if', garantindo que ele será checado corretamente
                 elif cnpj_selecionado == "FD60096402000163":
