@@ -537,7 +537,7 @@ if autenticar_usuario():
                 variacao_ibov_hoje = get_ibov_variacao_dia()
                 
                 c1, c2, c3, c4 = st.columns(4)
-                c1.metric("Cota de Ontem", f"R$ {cota_ontem_base:.4f}")
+                c1.metric("Cota de Ontem -  - Cota Marca D'agua Minas 3.11429", f"R$ {cota_ontem_base:.4f}")
                 c2.metric("Cota Estimada Hoje", f"R$ {dados_calculados['cota_hoje']:.4f}")
                 c3.metric("Variação da Cota", f"{dados_calculados['var_cota']:.4%}")
                 c4.metric("Variação IBOV hoje", f"{variacao_ibov_hoje:.4%}")
@@ -546,7 +546,7 @@ if autenticar_usuario():
                 # ======================= BLOCO DE ANÁLISE CORRIGIDO =======================
                 if cnpj_selecionado == CNPJ_MINAS_FIA:
                     cota_hoje = dados_calculados.get('cota_hoje', 0)
-                    cota_ontem = dados_calculados.get('cota_ontem', 0) 
+                    cota_ontem = dados_calculados.get('cota_ontem' , 0) 
                     variacao_cota = dados_calculados.get('variacao_dia', 0)
                     
                     st.divider()
