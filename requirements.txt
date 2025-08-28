@@ -6,3 +6,4 @@ workalendar
 streamlit-autorefresh
 altair
 pathlib
+openpyxl
