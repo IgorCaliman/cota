@@ -574,7 +574,7 @@ if autenticar_usuario():
                 
                     md_label = f"M. d'Água ({DATA_MARCA_DAGUA_STR})"
                     col_md_1, col_md_2, col_md_3 = st.columns(3)
-                    col_md_1.metric(f"Falta p/ {md_label}", f"{falta_marca_dagua:.2%}")
+                    col_md_1.metric(f"Falta p/ {md_label} - Cota Marca D'agua 3.11429", f"{falta_marca_dagua:.2%}")
                     col_md_2.metric(f"IBOV desde {md_label}", f"{ibov_desde_marca_dagua:.2%}")
                     col_md_3.metric(f"Falta p/ {md_label} + IBOV", f"{falta_total:.2%}")
                 
