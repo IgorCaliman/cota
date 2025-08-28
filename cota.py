@@ -112,7 +112,7 @@ FUNDOS = {
         "nome": "MINAS FIA",
         "cota_inicio": 1.9477472,
         "cota_ytd": 1.8726972,
-        "marca_dagua": 3.0196718,
+        "marca_dagua": 3.11429,
     },
     "FD60096402000163": {
         "nome": "MINAS DIVIDENDOS FIA",
