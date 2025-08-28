@@ -4,3 +4,5 @@ pandas
 yfinance
 workalendar
 streamlit-autorefresh
+altair
+pathlib
