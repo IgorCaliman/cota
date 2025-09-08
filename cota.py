@@ -691,11 +691,11 @@ if autenticar_usuario():
                                     x=alt.X("Data:T"),
                                     y=alt.Y("DI1F29:Q", 
                                             title="Taxa (%)",
-                                            axis=alt.Axis(orient="right", format=".1%"),
+                                            axis=alt.Axis(orient="right", format=".3%"),
                                             scale=alt.Scale(domain=domain_di)),
                                     tooltip=[
                                         alt.Tooltip("Data:T", title="Data"),
-                                        alt.Tooltip("DI1F29:Q", title="DI1F29", format=".3%")
+                                        alt.Tooltip("DI1F29:Q", title="DI1F29", format=".1%")
                                     ]
                                 )
                             )
