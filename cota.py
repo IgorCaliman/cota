@@ -615,7 +615,7 @@ if autenticar_usuario():
                                                    var_name="Série", value_name="Valor").dropna()
                 
                             st.divider()
-                            st.subheader("B100 — Minas vs Ibovespa")
+                            st.subheader("B100 — Minas vs Ibovespa (desde volta do Saliba)")
                             chart = (
                                 alt.Chart(df_plot)
                                 .mark_line(strokeWidth=2)
@@ -635,7 +635,7 @@ if autenticar_usuario():
                                         alt.Tooltip("Valor:Q", title="Valor", format=".1f")
                                     ],
                                 )
-                                .properties(height=340)
+                                .properties(height=500)
                             )
                             st.altair_chart(chart, use_container_width=True)
                     else:
