@@ -617,7 +617,7 @@ if autenticar_usuario():
                             # --- Lógica de cálculo adicionada aqui ---
                             if not df_plot.empty:
                                 max_valor = df_plot["Valor"].max()
-                                max_y = math.ceil(max_valor / 10) * 10 + 10
+                                max_y = math.ceil(max_valor / 10) * 10 + 5
                             else:
                                 max_y = 120 # Valor padrão caso df_plot esteja vazio
                             # ----------------------------------------
