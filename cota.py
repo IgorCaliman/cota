@@ -695,7 +695,7 @@ if autenticar_usuario():
                                             scale=alt.Scale(domain=domain_di)),
                                     tooltip=[
                                         alt.Tooltip("Data:T", title="Data"),
-                                        alt.Tooltip("DI1F29:Q", title="DI1F29", format=".1%")
+                                        alt.Tooltip("DI1F29:Q", title="DI1F29", format=".3%")
                                     ]
                                 )
                             )
