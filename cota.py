@@ -12,7 +12,7 @@ from datetime import timedelta, datetime
 from dateutil.relativedelta import relativedelta
 from zoneinfo import ZoneInfo
 from workalendar.america import Brazil
-
+import math
 import altair as alt
 from pathlib import Path
 
