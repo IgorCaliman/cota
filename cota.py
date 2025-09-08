@@ -602,36 +602,38 @@ if autenticar_usuario():
                 
                     st.metric("Performance vs CDI (desde 15/10/2020)", valor_display_cdi,
                               delta=f"{percentual_cdi:.2%}", delta_color="off")
+
                     df_b100 = carregar_b100()
                     if not df_b100.empty:
-                        # Normaliza colunas e datas
                         df_b100.columns = [c.strip() for c in df_b100.columns]
-                        if not {"Data", "Minas", "IBOV"}.issubset(set(df_b100.columns)):
-                            st.warning("B100.xlsx não tem as colunas esperadas: Data, Minas, IBOV.")
+                    
+                        if not {"Data", "Minas", "IBOV", "DI1F29"}.issubset(set(df_b100.columns)):
+                            st.warning("B100.xlsx não tem as colunas esperadas: Data, Minas, IBOV, DI1F29.")
                         else:
                             df_b100["Data"] = pd.to_datetime(df_b100["Data"], dayfirst=True, errors="coerce")
-                            df_plot = df_b100.melt("Data",
+                    
+                            # --------------------------------------------------------------------
+                            # GRÁFICO 1: Minas vs. Ibovespa (sem alterações)
+                            # --------------------------------------------------------------------
+                            
+                            df_plot_ibov = df_b100.melt("Data",
                                                    value_vars=["Minas", "IBOV"],
                                                    var_name="Série", value_name="Valor").dropna()
                     
-                            # --- Lógica de cálculo adicionada aqui ---
-                            if not df_plot.empty:
-                                max_valor = df_plot["Valor"].max()
-                                max_y = math.ceil(max_valor / 10) * 10 + 5
-                            else:
-                                max_y = 120 # Valor padrão caso df_plot esteja vazio
-                            # ----------------------------------------
+                            max_valor_1 = df_plot_ibov["Valor"].max()
+                            max_y_1 = math.ceil(max_valor_1 / 10) * 10 + 10
+                            min_y_1 = df_plot_ibov["Valor"].min() * 0.95
                             
                             st.divider()
                             st.subheader("B100 — Minas vs Ibovespa (desde volta do Saliba)")
-                            chart = (
-                                alt.Chart(df_plot)
+                            chart_1 = (
+                                alt.Chart(df_plot_ibov)
                                 .mark_line(strokeWidth=2)
                                 .encode(
                                     x=alt.X("Data:T", title="Data"),
                                     y=alt.Y("Valor:Q",
                                             title="Índice (base=100)",
-                                            scale=alt.Scale(domain=[90, max_y])), # Usa o valor calculado
+                                            scale=alt.Scale(domain=[min_y_1, max_y_1])),
                                     color=alt.Color("Série:N",
                                                     scale=alt.Scale(
                                                         domain=["Minas", "IBOV"],
@@ -645,11 +647,70 @@ if autenticar_usuario():
                                 )
                                 .properties(height=500)
                             )
-                            st.altair_chart(chart, use_container_width=True)
+                            st.altair_chart(chart_1, use_container_width=True)
+                    
+                            # --------------------------------------------------------------------
+                            # GRÁFICO 2: Minas vs. DI1F29 (Eixos Duplos com Escala Esticada)
+                            # --------------------------------------------------------------------
+                            st.divider()
+                            st.subheader("B100 — Minas vs DI1F29")
+                    
+                            # Calcula a escala dinâmica para a série 'Minas'
+                            min_minas = df_b100["Minas"].min()
+                            max_minas = df_b100["Minas"].max()
+                            domain_minas = [min_minas * 0.95, max_minas * 1.05]
+                    
+                            # Gráfico para a série Minas (eixo esquerdo)
+                            chart_minas = (
+                                alt.Chart(df_b100)
+                                .mark_line(strokeWidth=2, color="#1f77b4") # Azul
+                                .encode(
+                                    x=alt.X("Data:T", title="Data"),
+                                    y=alt.Y("Minas:Q",
+                                            title="Índice Base 100",
+                                            scale=alt.Scale(domain=domain_minas)),
+                                    tooltip=[
+                                        alt.Tooltip("Data:T", title="Data"),
+                                        alt.Tooltip("Minas:Q", title="Minas", format=".1f")
+                                    ]
+                                )
+                            )
+                    
+                            # Calcula a escala dinâmica para a série 'DI1F29'
+                            min_di = df_b100["DI1F29"].min()
+                            max_di = df_b100["DI1F29"].max()
+                            domain_di = [min_di * 0.95, max_di * 1.05]
+                    
+                            # Gráfico para a série DI1F29 (eixo direito)
+                            chart_di = (
+                                alt.Chart(df_b100)
+                                .mark_line(strokeWidth=2, color="#ff7f0e") # Laranja
+                                .encode(
+                                    x=alt.X("Data:T"),
+                                    y=alt.Y("DI1F29:Q", 
+                                            title="Taxa (%)",
+                                            axis=alt.Axis(orient="right", format=".1%"),
+                                            scale=alt.Scale(domain=domain_di)),
+                                    tooltip=[
+                                        alt.Tooltip("Data:T", title="Data"),
+                                        alt.Tooltip("DI1F29:Q", title="DI1F29", format=".1%")
+                                    ]
+                                )
+                            )
+                            
+                            # Combina os dois gráficos
+                            chart_2_final = (
+                                (chart_minas + chart_di)
+                                .properties(height=500)
+                                .interactive() # Permite zoom e pan
+                                .resolve_scale(y="independent")
+                            )
+                    
+                            st.altair_chart(chart_2_final, use_container_width=True)
+                            
                     else:
-                        st.info("Arquivo B100.xlsx não encontrado no repositório do app. "
-                                "Se estiver em outra pasta, ajuste o caminho na função carregar_b100() "
-                                "ou defina st.secrets['B100_URL'] com a URL RAW do GitHub.")
+                        st.info("Arquivo B100.xlsx não encontrado ou com erro. "
+                                "Verifique o caminho ou a URL do arquivo.")
 
                 # O 'elif' está no mesmo nível do 'if', garantindo que ele será checado corretamente
                 elif cnpj_selecionado == "FD60096402000163":
