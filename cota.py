@@ -613,7 +613,15 @@ if autenticar_usuario():
                             df_plot = df_b100.melt("Data",
                                                    value_vars=["Minas", "IBOV"],
                                                    var_name="Série", value_name="Valor").dropna()
-                
+                    
+                            # --- Lógica de cálculo adicionada aqui ---
+                            if not df_plot.empty:
+                                max_valor = df_plot["Valor"].max()
+                                max_y = math.ceil(max_valor / 10) * 10 + 10
+                            else:
+                                max_y = 120 # Valor padrão caso df_plot esteja vazio
+                            # ----------------------------------------
+                            
                             st.divider()
                             st.subheader("B100 — Minas vs Ibovespa (desde volta do Saliba)")
                             chart = (
@@ -623,11 +631,11 @@ if autenticar_usuario():
                                     x=alt.X("Data:T", title="Data"),
                                     y=alt.Y("Valor:Q",
                                             title="Índice (base=100)",
-                                            scale=alt.Scale(domainMin=90)),
+                                            scale=alt.Scale(domain=[90, max_y])), # Usa o valor calculado
                                     color=alt.Color("Série:N",
                                                     scale=alt.Scale(
                                                         domain=["Minas", "IBOV"],
-                                                        range=["#d62728", "#1f77b4"]  # vermelho / azul
+                                                        range=["#d62728", "#1f77b4"]
                                                     )),
                                     tooltip=[
                                         alt.Tooltip("Data:T", title="Data"),
