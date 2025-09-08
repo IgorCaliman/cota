@@ -606,12 +606,10 @@ if autenticar_usuario():
                     df_b100 = carregar_b100()
                     if not df_b100.empty:
                         df_b100.columns = [c.strip() for c in df_b100.columns]
-                        
-                        # Adicione esta linha para ver as colunas que o Python encontrou.
-                        st.info(f"Colunas encontradas: {df_b100.columns.tolist()}")
-                    
+                                           
                         if not {"Data", "Minas", "IBOV", "DI1F29"}.issubset(set(df_b100.columns)):
                             st.warning("B100.xlsx não tem as colunas esperadas: Data, Minas, IBOV, DI1F29.")
+                            st.info(f"Colunas encontradas: {df_b100.columns.tolist()}")
                         else:
                             # O restante do seu código
                             df_b100["Data"] = pd.to_datetime(df_b100["Data"], dayfirst=True, errors="coerce")
@@ -667,7 +665,7 @@ if autenticar_usuario():
                             # Gráfico para a série Minas (eixo esquerdo)
                             chart_minas = (
                                 alt.Chart(df_b100)
-                                .mark_line(strokeWidth=2, color="#1f77b4") # Azul
+                                .mark_line(strokeWidth=2, color="#d62728") # Vermelho
                                 .encode(
                                     x=alt.X("Data:T", title="Data"),
                                     y=alt.Y("Minas:Q",
@@ -706,7 +704,6 @@ if autenticar_usuario():
                             chart_2_final = (
                                 (chart_minas + chart_di)
                                 .properties(height=500)
-                                .interactive() # Permite zoom e pan
                                 .resolve_scale(y="independent")
                             )
                     
