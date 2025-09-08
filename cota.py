@@ -158,11 +158,7 @@ def credenciais_inseridas():
 
 @st.cache_data(ttl=3600)
 def carregar_b100():
-    """
-    Tenta ler B100.xlsx do próprio repositório (pasta raiz ou subpastas comuns).
-    Como fallback, usa uma URL de RAW do GitHub em st.secrets['B100_URL'].
-    """
-    candidatos = ["B100.xlsx", "data/B100.xlsx", "assets/B100.xlsx"]
+    candidatos = ["B100.xlsx"]
     for caminho in candidatos:
         if Path(caminho).exists():
             return pd.read_excel(caminho, decimal=",")
