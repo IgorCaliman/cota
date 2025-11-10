@@ -28,10 +28,10 @@ dados_setoriais = [
     # Energia Elétrica
     {"SETOR": "Energia Elétrica", "CODIGO": "NEOE3"},
     {"SETOR": "Energia Elétrica", "CODIGO": "ALUP11"},
-    {"SETOR": "Energia Elétrica", "CODIGO": "ELET3"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "AXIA3"},
     {"SETOR": "Energia Elétrica", "CODIGO": "ENGI11"},
     {"SETOR": "Energia Elétrica", "CODIGO": "CMIG4"},
-    {"SETOR": "Energia Elétrica", "CODIGO": "CPLE6"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "CPLE3"},
     # Real State (antigo Exploração de Imóveis e Incorporações)
     {"SETOR": "Real State", "CODIGO": "ALOS3"},
     {"SETOR": "Real State", "CODIGO": "EZTC3"},
