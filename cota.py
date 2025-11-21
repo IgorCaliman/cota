@@ -12,9 +12,23 @@ from datetime import timedelta, datetime
 from dateutil.relativedelta import relativedelta
 from zoneinfo import ZoneInfo
 from workalendar.america import Brazil
+from datetime import date  # <--- Certifique-se de ter importado 'date' ou use datetime.date
 import math
 import altair as alt
 from pathlib import Path
+
+class BrazilAtualizado(Brazil):
+    def get_fixed_holidays(self, year):
+        # Pega os feriados padrão
+        days = super().get_fixed_holidays(year)
+        
+        # Adiciona Consciência Negra a partir de 2024
+        if year >= 2024:
+            days.append((date(year, 11, 20), "Dia da Consciência Negra"))
+            
+        return days
+        
+
 # ============================== DADOS DE CLASSIFICAÇÃO SETORIAL ==============================
 # Versão final da lista de empresas e setores, com todas as modificações aplicadas.
 dados_setoriais = [
@@ -283,8 +297,10 @@ def buscar_precos_empresas(tickers: list[str]):
         return pd.DataFrame()
 # ============================== FUNÇÕES AUXILIARES ============================== #
 def ultimo_dia_util(delay: int = 1) -> str:
-    cal, d = Brazil(), pd.Timestamp.now(tz="America/Sao_Paulo") - timedelta(days=delay)
-    while not cal.is_working_day(d.date()): d -= timedelta(days=1)
+    # Troque Brazil() por BrazilAtualizado()
+    cal, d = BrazilAtualizado(), pd.Timestamp.now(tz="America/Sao_Paulo") - timedelta(days=delay)
+    while not cal.is_working_day(d.date()): 
+        d -= timedelta(days=1)
     return d.strftime("%Y-%m-%d")
 import yfinance as yf
 import pandas as pd
