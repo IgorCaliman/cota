@@ -115,7 +115,7 @@ FUNDOS = {
     CNPJ_MINAS_FIA: {
         "nome": "MINAS FIA",
         "cota_inicio": 1.9477472,
-        "cota_ytd": 1.8726972,
+        "cota_ytd": 3.4133134,
         "marca_dagua": 3.11429,
     },
     "FD60096402000163": {
@@ -127,7 +127,7 @@ FUNDOS = {
     "FD52204085000123": {
         "nome": "MINAS ONE FIA",
         "cota_inicio": 1.0,
-        "cota_ytd": 0.42874140,
+        "cota_ytd": 0.9841889,
         "data_inicio_str": "29/09/2023"
     },
     "FD48992682000192": {"nome": "ALFA HORIZON FIA"},
