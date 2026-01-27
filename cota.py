@@ -597,41 +597,70 @@ if autenticar_usuario():
                 # ======================= BLOCO DE ANÁLISE MINAS FIA =======================
                 if cnpj_selecionado == CNPJ_MINAS_FIA:
                     cota_hoje = dados_calculados.get('cota_hoje', 0)
-                   
+                    
                     st.divider()
-                               
+                    st.subheader("Análise de Rentabilidade — MINAS FIA")
+                    
+                    # --- Referências Fixas da Marca d'Água (29/12/2023) ---
+                    COTA_REF_MD = 3.11429
+                    IBOV_REF_MD = 134185.24
+                    
+                    # 1. Rentabilidade do Fundo desde a MD
+                    rent_fundo_desde_md = (cota_hoje / COTA_REF_MD) - 1 if COTA_REF_MD > 0 else 0
+                    
+                    # 2. Rentabilidade do IBOV desde a MD
+                    # Buscando o valor atual do Ibovespa para comparação
+                    try:
+                        ibov_ticker = yf.Ticker("^BVSP")
+                        # Pega o último fechamento disponível
+                        ibov_atual = ibov_ticker.history(period="1d")['Close'].iloc[-1]
+                        rent_ibov_desde_md = (ibov_atual / IBOV_REF_MD) - 1
+                    except:
+                        # Fallback caso a API falhe
+                        rent_ibov_desde_md = 0.0
+                        ibov_atual = 0.0
+
+                    # 3. Spread de Performance (Alpha sobre a MD corrigida)
+                    spread_performance = rent_fundo_desde_md - rent_ibov_desde_md
+                    
+                    # --- Métricas Principais (YTD e Início) ---
                     ref_minas_fia = FUNDOS[CNPJ_MINAS_FIA]
                     rent_ytd = (cota_hoje / ref_minas_fia['cota_ytd'] - 1) if ref_minas_fia['cota_ytd'] > 0 else 0
                     rent_inicio = (cota_hoje / ref_minas_fia['cota_inicio'] - 1) if ref_minas_fia['cota_inicio'] > 0 else 0
+                    
                     hoje_str = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y')
                     hoje_dt = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%Y-%m-%d')
+                    
                     cdi_acumulado = get_cdi_acumulado(data_inicio="15/10/2020", data_fim=hoje_str)
                     ibov_acumulado_inicio = get_ibov_acumulado(data_inicio="2020-10-15", data_fim=hoje_dt)
-                    percentual_cdi = rent_inicio - cdi_acumulado
-                    marca_dagua = ref_minas_fia['marca_dagua']
-                    falta_marca_dagua = (marca_dagua / cota_hoje - 1) if cota_hoje > 0 else 0
-                    ibov_desde_marca_dagua = get_ibov_acumulado(data_inicio=DATA_MARCA_DAGUA_API, data_fim=hoje_dt)
-                    falta_total = falta_marca_dagua + ibov_desde_marca_dagua
-               
-                    st.subheader("Análise de Rentabilidade — MINAS FIA")
+                    
                     m1, m2, m3, m4 = st.columns(4)
                     m1.metric("Rent. YTD", f"{rent_ytd:.2%}")
                     m2.metric("Rent. Início (15/10/20)", f"{rent_inicio:.2%}")
-                    m3.metric("CDI no período (15/10/20)", f"{cdi_acumulado:.2%}")
-                    m4.metric("IBOV no período (15/10/20)", f"{ibov_acumulado_inicio:.2%}")
-               
-                    md_label = f"M. d'Água ({DATA_MARCA_DAGUA_STR})"
+                    m3.metric("CDI no período", f"{cdi_acumulado:.2%}")
+                    m4.metric("IBOV no período", f"{ibov_acumulado_inicio:.2%}")
+
+                    # --- Métricas de Marca d'Água e Performance ---
+                    st.markdown(f"**Comparativo Marca d'Água (Ref: {DATA_MARCA_DAGUA_STR})**")
                     col_md_1, col_md_2, col_md_3 = st.columns(3)
-                    col_md_1.metric(f"Falta p/ {md_label} - Cota Marca D'agua 3.11429", f"{falta_marca_dagua:.2%}")
-                    col_md_2.metric(f"IBOV desde {md_label}", f"{ibov_desde_marca_dagua:.2%}")
-                    col_md_3.metric(f"Falta p/ {md_label} + IBOV", f"{falta_total:.2%}")
-               
+                    
+                    col_md_1.metric("Rent. Fundo (desde MD)", f"{rent_fundo_desde_md:.2%}")
+                    col_md_2.metric(f"Rent. IBOV (desde MD)", f"{rent_ibov_desde_md:.2%}", 
+                                   help=f"Base Ibov: {IBOV_REF_MD:,.2f} | Atual: {ibov_atual:,.2f}")
+                    
+                    # O delta indica se está acima ou abaixo do benchmark da MD
+                    status_cor = "normal" if spread_performance >= 0 else "inverse"
+                    col_md_3.metric("Spread vs MD + IBOV", f"{spread_performance:.2%}", 
+                                   delta=f"{spread_performance:.2%}", delta_color=status_cor)
+
+                    # --- Performance vs CDI (Visualização Adicional) ---
+                    percentual_cdi = rent_inicio - cdi_acumulado
                     texto_relativo_cdi = "acima do CDI" if percentual_cdi >= 0 else "abaixo do CDI"
                     valor_display_cdi = f"{abs(percentual_cdi):.2%} {texto_relativo_cdi}"
-               
+                    
                     st.metric("Performance vs CDI (desde 15/10/2020)", valor_display_cdi,
                               delta=f"{percentual_cdi:.2%}", delta_color="off")
-                    
+                              
                     df_b100 = carregar_b100()
                     if not df_b100.empty:
                         df_b100.columns = [c.strip() for c in df_b100.columns]
