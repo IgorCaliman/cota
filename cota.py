@@ -258,8 +258,8 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl, precos_hoje_dict, ca
     linha_caixa = pd.DataFrame([{
         "Ticker": "Caixa",
         "Quantidade de Ações": None,
-        "Preço Ontem (R$)": None,
-        "Preço Hoje (R$)": None,
+        "Preço Ontem (R$)": caixa_ontem,
+        "Preço Hoje (R$)": caixa_hoje,
         "Valor Ontem (R$)": caixa_ontem,
         "Valor Hoje (R$)": caixa_hoje,
         "% no Fundo": caixa_hoje / valor_total_ativos if valor_total_ativos != 0 else 0,
