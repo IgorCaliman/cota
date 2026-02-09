@@ -132,7 +132,7 @@ FUNDOS = {
     },
     "FD48992682000192": {"nome": "ALFA HORIZON FIA"},
 }
-COLUNAS_EXIBIDAS = ["Ticker", "Quantidade de Ações", "Preço Ontem (R$)", "Preço Hoje (R$)", "% no Fundo",
+COLUNAS_EXIBIDAS = ["Ticker", "Quantidade de Ações", "Preço Ontem (R$)", "Preço Hoje (R$)", "Valor Hoje (R$)", "% no Fundo",
                     "Variação Preço (%)", "Variação Ponderada (%)"]
 
 # ============================== FUNÇÕES DE LOGIN ============================== #
