@@ -93,6 +93,8 @@ dados_setoriais = [
     {"SETOR": "Serviços Educacionais", "CODIGO": "COGN3"},
     {"SETOR": "Serviços Educacionais", "CODIGO": "VTRU3"},
     {"SETOR": "Serviços Educacionais", "CODIGO": "YDUQ3"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "SEER3"},
+    
     {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "BRAV3"},
     {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "CSAN3"},
     {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PETR4"},
