@@ -646,7 +646,7 @@ if autenticar_usuario():
                     col_md_1, col_md_2, col_md_3 = st.columns(3)
                     
                     col_md_1.metric("Rent. Fundo (desde MD)", f"{rent_fundo_desde_md:.2%}")
-                    col_md_2.metric(f"Rent. IBOV (desde MD)", f"{rent_ibov_desde_md:.2%}", 
+                    col_md_2.metric(f"Rent. IBOV (desde MD - jeff doido)", f"{rent_ibov_desde_md:.2%}", 
                                    help=f"Base Ibov: {IBOV_REF_MD:,.2f} | Atual: {ibov_atual:,.2f}")
                     
                     # O delta indica se está acima ou abaixo do benchmark da MD
