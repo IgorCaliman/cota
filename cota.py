@@ -880,21 +880,68 @@ if autenticar_usuario():
                     col2.metric("CDI no Período", f"{cdi_periodo:.2%}")
                     col3.metric("IBOV no Período", f"{ibov_periodo:.2%}")
                 
-                # BLOCO MINAS ONE
+				# BLOCO MINAS ONE
                 elif cnpj_selecionado == "FD52204085000123":
                     st.divider()
                     st.subheader("Análise de Rentabilidade — MINAS ONE FIA")
-                   
+                    
                     cota_hoje = dados_calculados['cota_hoje']
                     ref_one = FUNDOS["FD52204085000123"]
-                   
+                    
+                    # Datas de referência
+                    data_inicio_str_one = ref_one.get('data_inicio_str', '29/09/2023')
+                    data_inicio_api_one = datetime.strptime(data_inicio_str_one, "%d/%m/%Y").strftime("%Y-%m-%d")
+                    hoje_str = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y')
+                    hoje_dt = datetime.now(tz=ZoneInfo("America/Sao_Paulo")).strftime('%Y-%m-%d')
+                    
+                    # 1. Linha de Métricas Principais (YTD, Início, CDI, IBOV)
                     rent_ytd_one = (cota_hoje / ref_one['cota_ytd'] - 1) if ref_one.get('cota_ytd', 0) > 0 else 0
                     rent_inicio_one = (cota_hoje / ref_one['cota_inicio'] - 1) if ref_one.get('cota_inicio', 0) > 0 else 0
-                    label_inicio_one = ref_one.get('data_inicio_str', 'Início')
-                   
-                    col_one_1, col_one_2 = st.columns(2)
-                    col_one_1.metric("Rent. YTD", f"{rent_ytd_one:.2%}")
-                    col_one_2.metric(f"Rent. Início ({label_inicio_one})", f"{rent_inicio_one:.2%}")
+                    
+                    cdi_acumulado_one = get_cdi_acumulado(data_inicio=data_inicio_str_one, data_fim=hoje_str)
+                    ibov_acumulado_one = get_ibov_acumulado(data_inicio=data_inicio_api_one, data_fim=hoje_dt)
+                    
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("Rent. YTD", f"{rent_ytd_one:.2%}")
+                    m2.metric(f"Rent. Início ({data_inicio_str_one})", f"{rent_inicio_one:.2%}")
+                    m3.metric("CDI no período", f"{cdi_acumulado_one:.2%}")
+                    m4.metric("IBOV no período", f"{ibov_acumulado_one:.2%}")
+
+                    # 2. Linha de Comparativo Marca d'Água
+                    st.markdown(f"**Comparativo Marca d'Água (Ref: {DATA_MARCA_DAGUA_STR})**")
+                    
+                    # Referências MD para o ONE: usando a cota YTD (fechamento de 2023) como base
+                    COTA_REF_MD_ONE = ref_one.get('cota_ytd', 0.9841889) 
+                    IBOV_REF_MD = 134185.24 # Mesma base Ibov do fechamento de 2023
+                    
+                    rent_fundo_desde_md_one = (cota_hoje / COTA_REF_MD_ONE) - 1 if COTA_REF_MD_ONE > 0 else 0
+                    
+                    try:
+                        ibov_ticker = yf.Ticker("^BVSP")
+                        ibov_atual = ibov_ticker.history(period="1d")['Close'].iloc[-1]
+                        rent_ibov_desde_md = (ibov_atual / IBOV_REF_MD) - 1
+                    except:
+                        rent_ibov_desde_md = 0.0
+                        ibov_atual = 0.0
+                        
+                    spread_performance_one = rent_fundo_desde_md_one - rent_ibov_desde_md
+                    
+                    col_md_1, col_md_2, col_md_3 = st.columns(3)
+                    col_md_1.metric("Rent. Fundo (desde MD)", f"{rent_fundo_desde_md_one:.2%}")
+                    col_md_2.metric(f"Rent. IBOV (desde MD)", f"{rent_ibov_desde_md:.2%}", 
+                                   help=f"Base Ibov: {IBOV_REF_MD:,.2f} | Atual: {ibov_atual:,.2f}")
+                    
+                    status_cor_one = "normal" if spread_performance_one >= 0 else "inverse"
+                    col_md_3.metric("Spread vs MD + IBOV", f"{spread_performance_one:.2%}", 
+                                   delta=f"{spread_performance_one:.2%}", delta_color=status_cor_one)
+
+                    # 3. Bloco Performance vs CDI
+                    percentual_cdi_one = rent_inicio_one - cdi_acumulado_one
+                    texto_relativo_cdi_one = "acima do CDI" if percentual_cdi_one >= 0 else "abaixo do CDI"
+                    valor_display_cdi_one = f"{abs(percentual_cdi_one):.2%} {texto_relativo_cdi_one}"
+                    
+                    st.metric(f"Performance vs CDI (desde {data_inicio_str_one})", valor_display_cdi_one,
+                              delta=f"{percentual_cdi_one:.2%}", delta_color="off")
                 
                 # Expander de parâmetros para todos os fundos
                 with st.expander("🔍 Parâmetros do Cálculo"):
@@ -986,3 +1033,4 @@ if autenticar_usuario():
                 st.dataframe(styler, use_container_width=True, hide_index=True)
    
             st.markdown("---")
+
