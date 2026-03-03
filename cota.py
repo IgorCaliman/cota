@@ -231,63 +231,44 @@ def get_ibov_acumulado(data_inicio: str, data_fim: str) -> float:
 
 def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl, precos_hoje_dict, caixa_ontem, caixa_hoje):
     df = df_base.copy()
-   
-    # Mapeia os preços a partir do dicionário recebido
-    df["Preço Hoje (R$)"] = df["Ticker"].map(precos_hoje_dict)
-    # Caso um ticker falhe, usa o preço de ontem como fallback
-    df["Preço Hoje (R$)"].fillna(df["Preço Ontem (R$)"], inplace=True)
+    df["Preço Hoje (R$)"] = df["Ticker"].map(precos_hoje_dict).fillna(df["Preço Ontem (R$)"])
     df["Variação Preço (%)"] = (df["Preço Hoje (R$)"] / df["Preço Ontem (R$)"] - 1).fillna(0)
     df["Valor Hoje (R$)"] = df["Quantidade de Ações"] * df["Preço Hoje (R$)"]
    
-    # Calcula valor das ações
-    valor_acoes_hoje = df["Valor Hoje (R$)"].fillna(0).sum()
+    valor_acoes_hoje = df["Valor Hoje (R$)"].sum()
     valor_acoes_ontem = df["Valor Ontem (R$)"].sum()
     
-    # Calcula componentes fixos (despesas, etc.) - agora SEM o caixa
+    # Componentes fixos (PL total menos o que já estamos calculando separadamente)
     comp_fixos = pl - valor_acoes_ontem - caixa_ontem
-    
-    # Patrimônio estimado hoje = ações + caixa atualizado + outros fixos
     patrimonio = valor_acoes_hoje + caixa_hoje + comp_fixos
     
-    # Valor total para cálculo do % no Fundo (ações + caixa)
     valor_total_ativos = valor_acoes_hoje + caixa_hoje
-    
-    # Calcula % no Fundo considerando ações + caixa
     df["% no Fundo"] = df["Valor Hoje (R$)"] / valor_total_ativos if valor_total_ativos != 0 else 0
     df["Variação Ponderada (%)"] = df["Variação Preço (%)"] * df["% no Fundo"]
     
-    # Adiciona linha do Caixa ao DataFrame
+    # Adiciona linha do Caixa
     linha_caixa = pd.DataFrame([{
-        "Ticker": "Caixa",
+        "Ticker": "Caixa Líquido",
         "Quantidade de Ações": None,
         "Preço Ontem (R$)": None,
         "Preço Hoje (R$)": None,
         "Valor Ontem (R$)": None,
-        "Valor Hoje (R$)": caixa_ontem,
+        "Valor Hoje (R$)": caixa_hoje,
         "% no Fundo": caixa_hoje / valor_total_ativos if valor_total_ativos != 0 else 0,
-        "Variação Preço (%)": (caixa_hoje / caixa_ontem - 1) if caixa_ontem != 0 else 0,
-        "Variação Ponderada (%)": ((caixa_hoje / caixa_ontem - 1) * (caixa_hoje / valor_total_ativos)) if (caixa_ontem != 0 and valor_total_ativos != 0) else 0
+        "Variação Preço (%)": 0.0,
+        "Variação Ponderada (%)": 0.0
     }])
     
     df = pd.concat([df, linha_caixa], ignore_index=True)
-    
     cota_hoje = patrimonio / qtd_cotas if qtd_cotas != 0 else 0
     var_cota = cota_hoje / cota_ontem - 1 if cota_ontem != 0 else 0
    
     return {
-        "df": df, 
-        "cota_hoje": cota_hoje, 
-        "var_cota": var_cota,
-        "extras": {
-            "valor_acoes_ontem": valor_acoes_ontem, 
-            "valor_acoes_hoje": valor_acoes_hoje,
-            "caixa_ontem": caixa_ontem,
-            "caixa_hoje": caixa_hoje,
-            "comp_fixos": comp_fixos,
-            "patrimonio": patrimonio, 
-            "qtd_cotas": qtd_cotas
-        }
+        "df": df, "cota_hoje": cota_hoje, "var_cota": var_cota,
+        "extras": {"caixa_hoje": caixa_hoje, "patrimonio": patrimonio, "qtd_cotas": qtd_cotas}
     }
+
+
 
 @st.cache_data(show_spinner="Buscando preços e calculando performance...", ttl=900)
 def buscar_precos_empresas(tickers: list[str]):
@@ -408,15 +389,24 @@ def baixar_xmls(token, ticket) -> dict[str, str]:
     except (zipfile.BadZipFile, KeyError):
         st.error("❌ ZIP inválido ou indisponível no BTG. Tente novamente mais tarde.")
     return mapeamento
-
-
 def extrair_xml(path):
+    """
+    Função atualizada para bater com a planilha do chefe.
+    Utiliza os campos consolidados do Header para calcular o Caixa Líquido.
+    """
     root = ET.parse(path).getroot()
     head = root.find(".//header")
     cota_ontem = float(head.findtext("valorcota"))
     qtd_cotas = float(head.findtext("quantidade"))
     pl = float(head.findtext("patliq"))
     
+    # Extração de campos consolidados do Header
+    # valorreceber inclui JCP e outros créditos
+    valor_receber = float(head.findtext("valorreceber") or 0)
+    valor_pagar = float(head.findtext("valorpagar") or 0)
+    vl_cotas_emitir = float(head.findtext("vlcotasemitir") or 0)
+    vl_cotas_resgatar = float(head.findtext("vlcotasresgatar") or 0)
+
     # AÇÕES
     linhas = [
         {
@@ -428,37 +418,30 @@ def extrair_xml(path):
         for ac in root.findall(".//acoes")
     ]
     
-    # COMPROMISSADA (base do caixa)
-    caixa_ontem = 0.0
-    caixa_hoje = 0.0
-    
+    # COMPROMISSADA (Base do Caixa)
+    caixa_base_ontem = 0.0
+    caixa_base_hoje = 0.0
     for tp in root.findall(".//titpublico"):
         qtd = float(tp.findtext("qtdisponivel") or 0)
         pu_posicao = float(tp.findtext("puposicao") or 0)
-        caixa_ontem += qtd * pu_posicao
+        caixa_base_ontem += qtd * pu_posicao
         
+        # Projeta o caixa de hoje baseado no PU de retorno da compromissada
         compromisso = tp.find("compromisso")
-        if compromisso is not None:
-            pu_retorno = float(compromisso.findtext("puretorno") or pu_posicao)
-        else:
-            pu_retorno = pu_posicao
-        caixa_hoje += qtd * pu_retorno
+        pu_retorno = float(compromisso.findtext("puretorno")) if compromisso is not None else pu_posicao
+        caixa_base_hoje += qtd * pu_retorno
 
-    # PROVISÕES: desconta todas do caixa, exceto as transitórias que ainda
-    # não estão disponíveis (JCP = 28, Dividendos a Receber = 22, Ajuste BM&F = 10)
-    CODPROV_IGNORAR = {"28", "22", "10"}
-
-    for prov in root.findall(".//provisao"):
-        codprov = (prov.findtext("codprov") or "").strip()
-        if codprov in CODPROV_IGNORAR:
-            continue
-        credeb = (prov.findtext("credeb") or "C").strip()
-        valor = float(prov.findtext("valor") or 0)
-        sinal = 1.0 if credeb == "C" else -1.0
-        caixa_ontem += sinal * valor
-        caixa_hoje  += sinal * valor  # provisões não variam intraday
+    # CÁLCULO DO CAIXA LÍQUIDO (Ajustes da Planilha)
+    # Aqui consolidamos: JCP + Despesas + Cotas a Emitir/Resgatar
+    net_ajustes = valor_receber - valor_pagar - vl_cotas_emitir - vl_cotas_resgatar
+    
+    caixa_ontem = caixa_base_ontem + net_ajustes
+    caixa_hoje = caixa_base_hoje + net_ajustes
 
     return pd.DataFrame(linhas), cota_ontem, qtd_cotas, pl, caixa_ontem, caixa_hoje
+
+
+
 
 def css_var(v):
     if isinstance(v, (float, int)):
