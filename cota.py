@@ -409,6 +409,7 @@ def baixar_xmls(token, ticket) -> dict[str, str]:
         st.error("❌ ZIP inválido ou indisponível no BTG. Tente novamente mais tarde.")
     return mapeamento
 
+
 def extrair_xml(path):
     root = ET.parse(path).getroot()
     head = root.find(".//header")
@@ -427,7 +428,7 @@ def extrair_xml(path):
         for ac in root.findall(".//acoes")
     ]
     
-    # CAIXA: compromissada (titpublico)
+    # COMPROMISSADA (base do caixa)
     caixa_ontem = 0.0
     caixa_hoje = 0.0
     
@@ -441,22 +442,22 @@ def extrair_xml(path):
             pu_retorno = float(compromisso.findtext("puretorno") or pu_posicao)
         else:
             pu_retorno = pu_posicao
-        
         caixa_hoje += qtd * pu_retorno
 
-    # PROVISÕES QUE ENTRAM NO CAIXA
-    # codprov 28 = Prov. Juros Capital Próprio (C = crédito = positivo)
-    # codprov 22 = A Rec. Dividendos            (C = crédito = positivo)
-    # codprov 10 = Ajuste BM&F                  (C ou D — respeita o sinal)
-    CODPROV_NO_CAIXA = {"28", "22", "10"}
-    
+    # PROVISÕES: desconta todas do caixa, exceto as transitórias que ainda
+    # não estão disponíveis (JCP = 28, Dividendos a Receber = 22, Ajuste BM&F = 10)
+    CODPROV_IGNORAR = {"28", "22", "10"}
+
     for prov in root.findall(".//provisao"):
-    credeb = (prov.findtext("credeb") or "C").strip()
-    valor = float(prov.findtext("valor") or 0)
-    if credeb == "D":
-        caixa_ontem -= valor
-        caixa_hoje  -= valor
-    
+        codprov = (prov.findtext("codprov") or "").strip()
+        if codprov in CODPROV_IGNORAR:
+            continue
+        credeb = (prov.findtext("credeb") or "C").strip()
+        valor = float(prov.findtext("valor") or 0)
+        sinal = 1.0 if credeb == "C" else -1.0
+        caixa_ontem += sinal * valor
+        caixa_hoje  += sinal * valor  # provisões não variam intraday
+
     return pd.DataFrame(linhas), cota_ontem, qtd_cotas, pl, caixa_ontem, caixa_hoje
 
 def css_var(v):
