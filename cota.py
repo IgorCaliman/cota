@@ -427,24 +427,38 @@ def extrair_xml(path):
         for ac in root.findall(".//acoes")
     ]
     
-    # TÍTULOS PÚBLICOS (CAIXA)
+    # CAIXA: compromissada (titpublico)
     caixa_ontem = 0.0
     caixa_hoje = 0.0
     
     for tp in root.findall(".//titpublico"):
         qtd = float(tp.findtext("qtdisponivel") or 0)
         pu_posicao = float(tp.findtext("puposicao") or 0)
-        
         caixa_ontem += qtd * pu_posicao
         
-        # Pega o puretorno dentro de <compromisso>
         compromisso = tp.find("compromisso")
         if compromisso is not None:
             pu_retorno = float(compromisso.findtext("puretorno") or pu_posicao)
         else:
-            pu_retorno = pu_posicao  # fallback se não tiver compromisso
+            pu_retorno = pu_posicao
         
         caixa_hoje += qtd * pu_retorno
+
+    # PROVISÕES QUE ENTRAM NO CAIXA
+    # codprov 28 = Prov. Juros Capital Próprio (C = crédito = positivo)
+    # codprov 22 = A Rec. Dividendos            (C = crédito = positivo)
+    # codprov 10 = Ajuste BM&F                  (C ou D — respeita o sinal)
+    CODPROV_NO_CAIXA = {"28", "22", "10"}
+    
+    for prov in root.findall(".//provisao"):
+        codprov = (prov.findtext("codprov") or "").strip()
+        if codprov not in CODPROV_NO_CAIXA:
+            continue
+        credeb = (prov.findtext("credeb") or "C").strip()
+        valor = float(prov.findtext("valor") or 0)
+        sinal = 1.0 if credeb == "C" else -1.0
+        caixa_ontem += sinal * valor
+        caixa_hoje  += sinal * valor  # provisões não variam intraday
     
     return pd.DataFrame(linhas), cota_ontem, qtd_cotas, pl, caixa_ontem, caixa_hoje
 
