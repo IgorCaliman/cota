@@ -451,14 +451,11 @@ def extrair_xml(path):
     CODPROV_NO_CAIXA = {"28", "22", "10"}
     
     for prov in root.findall(".//provisao"):
-        codprov = (prov.findtext("codprov") or "").strip()
-        if codprov not in CODPROV_NO_CAIXA:
-            continue
-        credeb = (prov.findtext("credeb") or "C").strip()
-        valor = float(prov.findtext("valor") or 0)
-        sinal = 1.0 if credeb == "C" else -1.0
-        caixa_ontem += sinal * valor
-        caixa_hoje  += sinal * valor  # provisões não variam intraday
+    credeb = (prov.findtext("credeb") or "C").strip()
+    valor = float(prov.findtext("valor") or 0)
+    if credeb == "D":
+        caixa_ontem -= valor
+        caixa_hoje  -= valor
     
     return pd.DataFrame(linhas), cota_ontem, qtd_cotas, pl, caixa_ontem, caixa_hoje
 
