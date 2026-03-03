@@ -429,7 +429,7 @@ def extrair_xml(path):
         # Projeta o caixa de hoje baseado no PU de retorno da compromissada
         compromisso = tp.find("compromisso")
         pu_retorno = float(compromisso.findtext("puretorno")) if compromisso is not None else pu_posicao
-        caixa_base_hoje += qtd * pu_retorno
+        caixa_base_hoje += qtd * pu_posicao
 
     # CÁLCULO DO CAIXA LÍQUIDO (Ajustes da Planilha)
     # Aqui consolidamos: JCP + Despesas + Cotas a Emitir/Resgatar
