@@ -238,7 +238,7 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl, precos_hoje_dict, ca
     valor_acoes_hoje = df["Valor Hoje (R$)"].sum()
     valor_acoes_ontem = df["Valor Ontem (R$)"].sum()
     
-    # Componentes fixos (PL total menos o que já estamos calculando separadamente)
+    # Componentes fixos (PL total menos o que calculamos separadamente)
     comp_fixos = pl - valor_acoes_ontem - caixa_ontem
     patrimonio = valor_acoes_hoje + caixa_hoje + comp_fixos
     
@@ -246,7 +246,7 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl, precos_hoje_dict, ca
     df["% no Fundo"] = df["Valor Hoje (R$)"] / valor_total_ativos if valor_total_ativos != 0 else 0
     df["Variação Ponderada (%)"] = df["Variação Preço (%)"] * df["% no Fundo"]
     
-    # Adiciona linha do Caixa
+    # Linha do Caixa (Variação será 0% conforme pedido)
     linha_caixa = pd.DataFrame([{
         "Ticker": "Caixa Líquido",
         "Quantidade de Ações": None,
@@ -263,11 +263,21 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl, precos_hoje_dict, ca
     cota_hoje = patrimonio / qtd_cotas if qtd_cotas != 0 else 0
     var_cota = cota_hoje / cota_ontem - 1 if cota_ontem != 0 else 0
    
+    # ADICIONE ESTAS CHAVES ABAIXO PARA CORRIGIR O ERRO DA IMAGEM:
     return {
-        "df": df, "cota_hoje": cota_hoje, "var_cota": var_cota,
-        "extras": {"caixa_hoje": caixa_hoje, "patrimonio": patrimonio, "qtd_cotas": qtd_cotas}
+        "df": df, 
+        "cota_hoje": cota_hoje, 
+        "var_cota": var_cota,
+        "extras": {
+            "valor_acoes_ontem": valor_acoes_ontem,
+            "valor_acoes_hoje": valor_acoes_hoje,
+            "caixa_ontem": caixa_ontem,
+            "caixa_hoje": caixa_hoje,
+            "comp_fixos": comp_fixos,
+            "patrimonio": patrimonio, 
+            "qtd_cotas": qtd_cotas
+        }
     }
-
 
 
 @st.cache_data(show_spinner="Buscando preços e calculando performance...", ttl=900)
