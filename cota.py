@@ -217,13 +217,18 @@ def get_cdi_acumulado(data_inicio: str, data_fim: str) -> float:
                 st.error(f"Erro ao buscar dados do CDI após 3 tentativas: {e}")
     return 0.0
 
+
 @st.cache_data(ttl=86400)
 def get_ibov_acumulado(data_inicio: str, data_fim: str) -> float:
     try:
         dados_ibov = yf.download('^BVSP', start=data_inicio, end=data_fim, progress=False, auto_adjust=True)
         if dados_ibov.empty or len(dados_ibov) < 2: return 0.0
-        preco_inicio = float(dados_ibov['Close'].iloc[0])
-        preco_fim = float(dados_ibov['Close'].iloc[-1])
+        close = dados_ibov['Close']
+        if isinstance(close.columns if hasattr(close, 'columns') else None, pd.MultiIndex):
+            close = close.iloc[:, 0]
+        close = close.squeeze()  # garante Series 1D independentemente da versão
+        preco_inicio = float(close.iloc[0])
+        preco_fim = float(close.iloc[-1])
         return (preco_fim / preco_inicio) - 1
     except Exception as e:
         st.error(f"Erro ao buscar dados do IBOV: {e}")
