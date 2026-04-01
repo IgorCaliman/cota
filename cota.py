@@ -220,7 +220,7 @@ def get_cdi_acumulado(data_inicio: str, data_fim: str) -> float:
 @st.cache_data(ttl=86400)
 def get_ibov_acumulado(data_inicio: str, data_fim: str) -> float:
     try:
-        dados_ibov = yf.download('^BVSP', start=data_inicio, end=data_fim, progress=False, auto_adjust=True)
+        dados_ibov = yf.download('^BVSP', start=data_inicio, end=data_fim, progress=False, auto_adjust=True, threads=False)
         if dados_ibov.empty or len(dados_ibov) < 2: return 0.0
         preco_inicio = float(dados_ibov['Close'].iloc[0])
         preco_fim = float(dados_ibov['Close'].iloc[-1])
@@ -287,7 +287,7 @@ def buscar_precos_empresas(tickers: list[str]):
     """
     try:
         periodo_longo = "4y"
-        dados = yf.download(tickers, period=periodo_longo, progress=False, auto_adjust=True)
+        dados = yf.download(tickers, period=periodo_longo, progress=False, auto_adjust=True, threads=False)
         if dados.empty:
             return pd.DataFrame()
         precos_historicos = dados['Close']
@@ -528,7 +528,7 @@ if autenticar_usuario():
                         # 2. Busca todos os preços de uma só vez
                         precos_hoje_dict = {}
                         if tickers_list_sa:
-                            dados_yf = yf.download(tickers=tickers_list_sa, period="2d", progress=False, auto_adjust=True)
+                            dados_yf = yf.download(tickers=tickers_list_sa, period="2d", progress=False, auto_adjust=True, threads=False)
                             if not dados_yf.empty and 'Close' in dados_yf:
                                 precos_hoje_series = dados_yf['Close'].iloc[-1]
                                 precos_hoje_dict = {k.replace('.SA', ''): v for k, v in precos_hoje_series.to_dict().items()}
@@ -1038,4 +1038,3 @@ if autenticar_usuario():
                 st.dataframe(styler, use_container_width=True, hide_index=True)
    
             st.markdown("---")
-
