@@ -186,15 +186,14 @@ def obter_dados_base_do_dia(data_str: str):
     dados_base = {}
     if mapeamento_xmls:
         for cnpj, xml_path in mapeamento_xmls.items():
-            df_base, cota_ontem, qtd_cotas, pl, caixa_ontem, caixa_hoje, df_opcoes = extrair_xml(xml_path)
+            df_base, cota_ontem, qtd_cotas, pl, caixa_ontem, caixa_hoje = extrair_xml(xml_path)
             dados_base[cnpj] = {
-                "df_base": df_base,
+                "df_base": df_base, 
                 "cota_ontem": cota_ontem,
-                "qtd_cotas": qtd_cotas,
+                "qtd_cotas": qtd_cotas, 
                 "pl": pl,
                 "caixa_ontem": caixa_ontem,
-                "caixa_hoje": caixa_hoje,
-                "df_opcoes": df_opcoes,
+                "caixa_hoje": caixa_hoje
             }
     return dados_base
 
@@ -452,34 +451,7 @@ def extrair_xml(path):
     caixa_ontem = caixa_base_ontem + net_ajustes
     caixa_hoje = caixa_base_hoje + net_ajustes
 
-    # OPÇÕES
-    opcoes = []
-    for op in root.findall(".//opcoesacoes"):
-        tipo = op.findtext("classeoperacao", "").strip()
-        venc_raw = op.findtext("dtvencimento", "")
-        try:
-            venc_fmt = datetime.strptime(venc_raw, "%Y%m%d").strftime("%d/%m/%Y")
-        except ValueError:
-            venc_fmt = venc_raw
-        qtd = float(op.findtext("qtdisponivel") or 0)
-        pu = float(op.findtext("puposicao") or 0)
-        val_fin = float(op.findtext("valorfinanceiro") or 0)
-        # Vendida (short) → valor financeiro é negativo para o fundo
-        if tipo == "V":
-            val_fin = -abs(val_fin)
-        opcoes.append({
-            "Código": op.findtext("codativo", "").strip(),
-            "Ativo Base": op.findtext("ativobase", "").strip(),
-            "Tipo": "Comprada" if tipo == "C" else "Vendida",
-            "Quantidade": qtd,
-            "Preço Exercício": float(op.findtext("precoexercicio") or 0),
-            "PU Posição": pu,
-            "Valor Financeiro (R$)": val_fin,
-            "Vencimento": venc_fmt,
-        })
-    df_opcoes = pd.DataFrame(opcoes) if opcoes else pd.DataFrame()
-
-    return pd.DataFrame(linhas), cota_ontem, qtd_cotas, pl, caixa_ontem, caixa_hoje, df_opcoes
+    return pd.DataFrame(linhas), cota_ontem, qtd_cotas, pl, caixa_ontem, caixa_hoje
 
 
 
@@ -621,36 +593,10 @@ if autenticar_usuario():
                 st.dataframe(
                     df_final[COLUNAS_EXIBIDAS].sort_values("% no Fundo", ascending=False).style.format(fmt, na_rep="-").map(
                         css_var, subset=["Variação Preço (%)", "Variação Ponderada (%)"]),
-                    use_container_width=True,
+                    use_container_width=True, 
                     hide_index=True
                 )
-
-                df_opcoes_fundo = dados_base_do_dia[cnpj_selecionado].get("df_opcoes", pd.DataFrame())
-                if df_opcoes_fundo is not None and not df_opcoes_fundo.empty:
-                    st.markdown("**Opções na Carteira**")
-                    fmt_opcoes = {
-                        "Quantidade": "{:,.0f}",
-                        "Preço Exercício": "R$ {:,.2f}",
-                        "PU Posição": "R$ {:,.4f}",
-                        "Valor Financeiro (R$)": "R$ {:,.2f}",
-                    }
-                    def css_tipo_opcao(v):
-                        if v == "Vendida": return "color: red;"
-                        if v == "Comprada": return "color: green;"
-                        return ""
-                    def css_valor_financeiro(v):
-                        if isinstance(v, (int, float)):
-                            return "color: red;" if v < 0 else "color: green;"
-                        return ""
-                    st.dataframe(
-                        df_opcoes_fundo.style
-                            .map(css_tipo_opcao, subset=["Tipo"])
-                            .map(css_valor_financeiro, subset=["Valor Financeiro (R$)"])
-                            .format(fmt_opcoes),
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-
+                
                 variacao_ibov_hoje = get_ibov_variacao_dia()
                
                 c1, c2, c3, c4 = st.columns(4)
