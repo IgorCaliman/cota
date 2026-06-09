@@ -121,7 +121,7 @@ FUNDOS = {
         "marca_dagua": 3.11429,
     },
     "FD60096402000163": {
-        "nome": "MINAS DIVIDENDOS FIA",
+        "nome": "MINAS EDUCAÇÃO FIA",
         "cota_inicio": 1.0,
         "data_inicio_str": "07/04/2025",
         "data_inicio_api": "2025-04-07"
