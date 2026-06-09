@@ -866,10 +866,10 @@ if autenticar_usuario():
                         st.info("Arquivo B100.xlsx não encontrado ou com erro. "
                                 "Verifique o caminho ou a URL do arquivo.")
                 
-                # BLOCO MINAS DIVIDENDOS
+                # BLOCO MINAS EDUCAÇÃO
                 elif cnpj_selecionado == "FD60096402000163":
                     st.divider()
-                    st.subheader("Análise de Rentabilidade — MINAS DIVIDENDOS FIA")
+                    st.subheader("Análise de Rentabilidade — MINAS EDUCAÇÃO FIA")
                    
                     cota_hoje = dados_calculados['cota_hoje']
                     ref_div = FUNDOS["FD60096402000163"]
