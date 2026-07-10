@@ -9,6 +9,7 @@ import pandas as pd
 import yfinance as yf
 import xml.etree.ElementTree as ET
 from datetime import timedelta, datetime
+from dateutil.relativedelta import relativedelta
 from zoneinfo import ZoneInfo
 from workalendar.america import Brazil
 from datetime import date
@@ -23,6 +24,86 @@ class BrazilAtualizado(Brazil):
             days.append((date(year, 11, 20), "Dia da Consciência Negra"))
         return days
         
+
+# ============================== DADOS DE CLASSIFICAÇÃO SETORIAL ==============================
+dados_setoriais = [
+    # Novo Grupo Simpar
+    {"SETOR": "Grupo Simpar", "CODIGO": "MOVI3"},
+    {"SETOR": "Grupo Simpar", "CODIGO": "VAMO3"},
+    {"SETOR": "Grupo Simpar", "CODIGO": "JSLG3"},
+    {"SETOR": "Grupo Simpar", "CODIGO": "SIMH3"},
+    {"SETOR": "Grupo Simpar", "CODIGO": "AMOB3"},
+   
+    # Energia Elétrica
+    {"SETOR": "Energia Elétrica", "CODIGO": "ALUP11"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "AXIA3"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "ENGI11"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "CMIG4"},
+    {"SETOR": "Energia Elétrica", "CODIGO": "CPLE3"},
+    # Real State
+    {"SETOR": "Real State", "CODIGO": "ALOS3"},
+    {"SETOR": "Real State", "CODIGO": "EZTC3"},
+    {"SETOR": "Real State", "CODIGO": "HBSA3"},
+    {"SETOR": "Real State", "CODIGO": "LOGG3"},
+    {"SETOR": "Real State", "CODIGO": "MELK3"},
+    # Bancos
+    {"SETOR": "Bancos", "CODIGO": "ITSA4"},
+    {"SETOR": "Bancos", "CODIGO": "ABCB4"},
+    {"SETOR": "Bancos", "CODIGO": "BBAS3"},
+    {"SETOR": "Bancos", "CODIGO": "BBDC4"},
+    {"SETOR": "Bancos", "CODIGO": "BPAC11"},
+    {"SETOR": "Bancos", "CODIGO": "BRBI11"},
+    {"SETOR": "Bancos", "CODIGO": "BRSR6"},
+    {"SETOR": "Bancos", "CODIGO": "CASH3"},
+    {"SETOR": "Bancos", "CODIGO": "ITUB4"},
+   
+    # Material Rodoviário
+    {"SETOR": "Material Rodoviário", "CODIGO": "MYPK3"},
+    {"SETOR": "Material Rodoviário", "CODIGO": "RAPT4"},
+    {"SETOR": "Material Rodoviário", "CODIGO": "TUPY3"},
+    # Telecom
+    {"SETOR": "Telecom", "CODIGO": "VIVT3"},
+    {"SETOR": "Telecom", "CODIGO": "TIMS3"},
+   
+    # BDRs
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "AAPL34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "AMZO34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "BABA34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "BERK34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "BIEV39"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "BOAC34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "COLG34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "GOGL34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "GOGL35"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "JPMC34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "M2ST34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "M1TA34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "MCDC34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "NFLX34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "NVDC34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "PEPB34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "PFIZ34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "PGCO34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "S1PO34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "TSLA34"},
+    {"SETOR": "BDR – Setor internacional", "CODIGO": "WALM34"},
+    # Demais
+    {"SETOR": "Serviços Educacionais", "CODIGO": "ANIM3"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "COGN3"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "VTRU3"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "YDUQ3"},
+    {"SETOR": "Serviços Educacionais", "CODIGO": "SEER3"},
+    
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "BRAV3"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "CSAN3"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PETR4"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "PRIO3"},
+    {"SETOR": "Exploração, Refino e Distribuição", "CODIGO": "RECV3"},
+    {"SETOR": "Papel e Celulose", "CODIGO": "KLBN11"},
+    {"SETOR": "Papel e Celulose", "CODIGO": "SUZB3"},
+    {"SETOR": "Papel e Celulose", "CODIGO": "RANI3"},
+]
+df_setorial = pd.DataFrame(dados_setoriais)
 
 # ============================== CONFIGURAÇÕES GLOBAIS ============================== #
 TIPO_RELATORIO = 3
@@ -201,6 +282,58 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl, precos_hoje_dict, ca
     }
 
 
+@st.cache_data(show_spinner="Buscando preços e calculando performance...", ttl=900)
+def buscar_precos_empresas(tickers: list[str]):
+    """
+    Busca dados de D-1, D-0, volatilidade e a performance em vários períodos.
+    """
+    try:
+        periodo_longo = "4y"
+        dados = yf.download(tickers, period=periodo_longo, progress=False, auto_adjust=True)
+        if dados.empty:
+            return pd.DataFrame()
+        precos_historicos = dados['Close']
+        if precos_historicos.empty or len(precos_historicos) < 2:
+            return pd.DataFrame()
+        # --- Cálculos de Performance ---
+        hoje = precos_historicos.index[-1]
+        datas_inicio = {
+            "1M": hoje - relativedelta(months=1),
+            "6M": hoje - relativedelta(months=6),
+            "YTD": datetime(hoje.year, 1, 1),
+            "1A": hoje - relativedelta(years=1),
+            "3A": hoje - relativedelta(years=3)
+        }
+        preco_final = precos_historicos.iloc[-1]
+        variacoes = {}
+        for nome, data_inicio in datas_inicio.items():
+            idx_inicio = precos_historicos.index.searchsorted(data_inicio)
+            if idx_inicio < len(precos_historicos):
+                preco_inicial = precos_historicos.iloc[idx_inicio]
+                variacoes[nome] = (preco_final / preco_inicial) - 1
+            else:
+                variacoes[nome] = pd.Series(0, index=precos_historicos.columns)
+        df_variacoes = pd.DataFrame(variacoes)
+        # --- Cálculo da Volatilidade ---
+        retornos_diarios = precos_historicos.pct_change()
+        volatilidade_60d = retornos_diarios.iloc[-60:].std()
+        # --- Extração de Preços (Ontem e Hoje) ---
+        preco_ontem = precos_historicos.iloc[-2]
+        preco_hoje = precos_historicos.iloc[-1]
+        # --- Montagem do DataFrame Final ---
+        df_resultado = pd.DataFrame({
+            'Preço Ontem (R$)': preco_ontem,
+            'Preço Hoje (R$)': preco_hoje,
+            'Variação (%)': (preco_hoje / preco_ontem) - 1,
+            'Volatilidade (60d)': volatilidade_60d
+        })
+        df_resultado = df_resultado.join(df_variacoes)
+        df_resultado.reset_index(inplace=True)
+        df_resultado.rename(columns={'index': 'Ticker'}, inplace=True)
+        return df_resultado
+    except Exception as e:
+        return pd.DataFrame()
+
 # ============================== FUNÇÕES AUXILIARES ============================== #
 def ultimo_dia_util(delay: int = 1) -> str:
     cal, d = BrazilAtualizado(), pd.Timestamp.now(tz="America/Sao_Paulo") - timedelta(days=delay)
@@ -337,8 +470,10 @@ if autenticar_usuario():
     st.title(f"AF INVEST | Análise de Carteiras e Ações")
     st.caption(f"Posição dos fundos referente ao dia: {data_formatada}")
    
-    # ============================== ANÁLISE DE FUNDOS ============================== #
-    if True:
+    tab_fundos, tab_empresas = st.tabs(["📊 Análise de Fundos", "📈 Acompanhamento de Empresas"])
+    
+    # ============================== ABA DE ANÁLISE DE FUNDOS ============================== #
+    with tab_fundos:
         st.session_state.setdefault('dados_calculados_cache', {})
         st.session_state.setdefault('global_last_update_time', None)
         dados_base_do_dia = obter_dados_base_do_dia(ultimo_dia_util())
@@ -825,3 +960,83 @@ if autenticar_usuario():
                     st.write(f"📎 Outros componentes fixos (despesas, etc.): R$ {ex['comp_fixos']:,.2f}")
                     st.write(f"💼 Patrimônio estimado: R$ {ex['patrimonio']:,.2f}")
                     st.write(f"🧮 Quantidade de cotas: {ex['qtd_cotas']:,.2f}")
+    
+    # ============================== ABA DE ACOMPANHAMENTO DE EMPRESAS ============================== #
+    with tab_empresas:
+        if 'last_update_empresas' not in st.session_state:
+            st.session_state.last_update_empresas = None
+        col_btn, col_time = st.columns([1, 4])
+        with col_btn:
+            if st.button("🔄 Atualizar Preços", key="update_empresas"):
+                buscar_precos_empresas.clear()
+                st.session_state.last_update_empresas = datetime.now(tz=ZoneInfo("America/Sao_Paulo"))
+                st.rerun()
+        with col_time:
+            if st.session_state.last_update_empresas:
+                st.caption(f"Última atualização: **{st.session_state.last_update_empresas.strftime('%d/%m/%Y às %H:%M:%S')}**")
+       
+        st.markdown("---")
+        ordem_desejada = [
+            "Grupo Simpar",
+            "Serviços Educacionais",
+            "Papel e Celulose",
+            "Energia Elétrica",
+            "Real State",
+            "Material Rodoviário"
+        ]
+        setor_bdr = "BDR – Setor internacional"
+       
+        todos_setores = df_setorial['SETOR'].unique().tolist()
+       
+        setores_nao_ordenados = [s for s in todos_setores if s not in ordem_desejada and s != setor_bdr]
+        setores_nao_ordenados.sort()
+       
+        setores_ordenados = ordem_desejada + setores_nao_ordenados
+        if setor_bdr in todos_setores:
+            setores_ordenados.append(setor_bdr)
+   
+        for setor in setores_ordenados:
+            df_setor_atual = df_setorial[df_setorial['SETOR'] == setor]
+            if df_setor_atual.empty:
+                continue
+            st.subheader(f"Setor: {setor}")
+   
+            tickers_do_setor = df_setor_atual['CODIGO'].tolist()
+            tickers_para_api = [ticker + '.SA' for ticker in tickers_do_setor]
+   
+            df_performance = buscar_precos_empresas(tickers_para_api)
+   
+            if not df_performance.empty:
+                df_display = df_performance.copy()
+                df_display['Ticker'] = df_display['Ticker'].str.replace(".SA", "", regex=False)
+                df_display.rename(columns={
+                    'Variação (%)': 'Var. Dia', 'Volatilidade (60d)': 'Vol (60d)',
+                    '1M': 'Var. 1M', '6M': 'Var. 6M', '1A': 'Var. 1A', '3A': 'Var. 3A'
+                }, inplace=True)
+   
+                formatos = {
+                    "Preço Hoje (R$)": "R$ {:.2f}", "Var. Dia": "{:.2%}", "Vol (60d)": "{:.2%}",
+                    "Var. 1M": "{:.2%}", "Var. 6M": "{:.2%}", "YTD": "{:.2%}", "Var. 1A": "{:.2%}", "Var. 3A": "{:.2%}"
+                }
+                colunas_para_remover = ['Preço Ontem (R$)']
+                colunas_para_colorir = ['Var. Dia', 'Var. 1M', 'Var. 6M', 'YTD', 'Var. 1A', 'Var. 3A']
+   
+                for col in colunas_para_remover:
+                    if col in df_display.columns:
+                        del df_display[col]
+   
+                def estilo_variacao_empresa(v):
+                    if isinstance(v, (int, float)):
+                        cor = 'green' if v > 0 else 'red' if v < 0 else 'darkgray'
+                        return f'color: {cor}'
+                    return ''
+   
+                styler = df_display.style
+                for col in colunas_para_colorir:
+                    if col in df_display.columns:
+                        styler = getattr(styler, "map" if hasattr(styler, "map") else "applymap")(estilo_variacao_empresa, subset=[col])
+                styler = styler.format(formatos)
+   
+                st.dataframe(styler, use_container_width=True, hide_index=True)
+   
+            st.markdown("---")
