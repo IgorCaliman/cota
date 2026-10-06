@@ -236,20 +236,34 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl, precos_hoje_dict, ca
     df["Preço Hoje (R$)"] = df["Ticker"].map(precos_hoje_dict).fillna(df["Preço Ontem (R$)"])
     df["Variação Preço (%)"] = (df["Preço Hoje (R$)"] / df["Preço Ontem (R$)"] - 1).fillna(0)
     df["Valor Hoje (R$)"] = df["Quantidade de Ações"] * df["Preço Hoje (R$)"]
-   
+
     valor_acoes_hoje = df["Valor Hoje (R$)"].sum()
     valor_acoes_ontem = df["Valor Ontem (R$)"].sum()
-    
+
     # Componentes fixos (PL total menos o que calculamos separadamente)
     comp_fixos = pl - valor_acoes_ontem - caixa_ontem
     patrimonio = valor_acoes_hoje + caixa_hoje + comp_fixos
-    
+
     valor_total_ativos = valor_acoes_hoje + caixa_hoje
     df["% no Fundo"] = df["Valor Hoje (R$)"] / valor_total_ativos if valor_total_ativos != 0 else 0
-    df["Variação Ponderada (%)"] = df["Variação Preço (%)"] * df["% no Fundo"]
-    
-    # Linha do Caixa (Variação será 0% conforme pedido)
-    linha_caixa = pd.DataFrame([{
+
+    # Cota
+    cota_hoje = patrimonio / qtd_cotas if qtd_cotas != 0 else 0
+    var_cota = cota_hoje / cota_ontem - 1 if cota_ontem != 0 else 0
+
+    # Contribuição de cada ação para a variação da cota: (R$ hoje - R$ ontem) / PL de ontem
+    df["Variação Ponderada (%)"] = (
+        (df["Valor Hoje (R$)"] - df["Valor Ontem (R$)"]) / pl if pl != 0 else 0
+    )
+    contrib_acoes = df["Variação Ponderada (%)"].sum()
+
+    # Contribuição do caixa (rendimento da compromissada, JCP etc.)
+    contrib_caixa = (caixa_hoje - caixa_ontem) / pl if pl != 0 else 0
+
+    # Resíduo: despesas, diferença entre cota_ontem*qtd_cotas e PL, arredondamentos
+    contrib_outros = var_cota - contrib_acoes - contrib_caixa
+
+    linhas_extra = [{
         "Ticker": "Caixa Líquido",
         "Quantidade de Ações": None,
         "Preço Ontem (R$)": None,
@@ -258,17 +272,26 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl, precos_hoje_dict, ca
         "Valor Hoje (R$)": caixa_hoje,
         "% no Fundo": caixa_hoje / valor_total_ativos if valor_total_ativos != 0 else 0,
         "Variação Preço (%)": 0.0,
-        "Variação Ponderada (%)": 0.0
-    }])
-    
-    df = pd.concat([df, linha_caixa], ignore_index=True)
-    cota_hoje = patrimonio / qtd_cotas if qtd_cotas != 0 else 0
-    var_cota = cota_hoje / cota_ontem - 1 if cota_ontem != 0 else 0
-   
-    # ADICIONE ESTAS CHAVES ABAIXO PARA CORRIGIR O ERRO DA IMAGEM:
+        "Variação Ponderada (%)": contrib_caixa,
+    }]
+    if abs(contrib_outros) > 1e-8:
+        linhas_extra.append({
+            "Ticker": "Outros (despesas/ajustes)",
+            "Quantidade de Ações": None,
+            "Preço Ontem (R$)": None,
+            "Preço Hoje (R$)": None,
+            "Valor Ontem (R$)": None,
+            "Valor Hoje (R$)": None,
+            "% no Fundo": None,
+            "Variação Preço (%)": None,
+            "Variação Ponderada (%)": contrib_outros,
+        })
+
+    df = pd.concat([df, pd.DataFrame(linhas_extra)], ignore_index=True)
+
     return {
-        "df": df, 
-        "cota_hoje": cota_hoje, 
+        "df": df,
+        "cota_hoje": cota_hoje,
         "var_cota": var_cota,
         "extras": {
             "valor_acoes_ontem": valor_acoes_ontem,
@@ -276,9 +299,9 @@ def recalcular_metricas(df_base, cota_ontem, qtd_cotas, pl, precos_hoje_dict, ca
             "caixa_ontem": caixa_ontem,
             "caixa_hoje": caixa_hoje,
             "comp_fixos": comp_fixos,
-            "patrimonio": patrimonio, 
-            "qtd_cotas": qtd_cotas
-        }
+            "patrimonio": patrimonio,
+            "qtd_cotas": qtd_cotas,
+        },
     }
 
 
