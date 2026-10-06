@@ -424,57 +424,44 @@ def baixar_xmls(token, ticket) -> dict[str, str]:
     except (zipfile.BadZipFile, KeyError):
         st.error("❌ ZIP inválido ou indisponível no BTG. Tente novamente mais tarde.")
     return mapeamento
+	
 def extrair_xml(path):
-    """
-    Função atualizada para bater com a planilha do chefe.
-    Utiliza os campos consolidados do Header para calcular o Caixa Líquido.
-    """
     root = ET.parse(path).getroot()
     head = root.find(".//header")
     cota_ontem = float(head.findtext("valorcota"))
     qtd_cotas = float(head.findtext("quantidade"))
     pl = float(head.findtext("patliq"))
-    
-    # Extração de campos consolidados do Header
-    # valorreceber inclui JCP e outros créditos
+
     valor_receber = float(head.findtext("valorreceber") or 0)
     valor_pagar = float(head.findtext("valorpagar") or 0)
     vl_cotas_emitir = float(head.findtext("vlcotasemitir") or 0)
     vl_cotas_resgatar = float(head.findtext("vlcotasresgatar") or 0)
 
-    # AÇÕES
     linhas = [
         {
-            "Ticker": ac.findtext("codativo").strip(), 
+            "Ticker": ac.findtext("codativo").strip(),
             "Quantidade de Ações": float(ac.findtext("qtdisponivel")),
             "Preço Ontem (R$)": float(ac.findtext("puposicao")),
-            "Valor Ontem (R$)": float(ac.findtext("qtdisponivel")) * float(ac.findtext("puposicao"))
-        } 
+            "Valor Ontem (R$)": float(ac.findtext("qtdisponivel")) * float(ac.findtext("puposicao")),
+        }
         for ac in root.findall(".//acoes")
     ]
-    
-    # COMPROMISSADA (Base do Caixa)
-    caixa_base_ontem = 0.0
-    caixa_base_hoje = 0.0
+
+    compromissada_ontem = 0.0
+    compromissada_hoje = 0.0
     for tp in root.findall(".//titpublico"):
         qtd = float(tp.findtext("qtdisponivel") or 0)
         pu_posicao = float(tp.findtext("puposicao") or 0)
-        caixa_base_ontem += qtd * pu_posicao
-        
-        # Projeta o caixa de hoje baseado no PU de retorno da compromissada
-        compromisso = tp.find("compromisso")
-        pu_retorno = float(compromisso.findtext("puretorno")) if compromisso is not None else pu_posicao
-        caixa_base_hoje += qtd * pu_posicao
+        compromissada_ontem += qtd * pu_posicao
+        compromissada_hoje += qtd * pu_posicao  # TODO: projetar rendimento do dia (ver abaixo)
 
-    # CÁLCULO DO CAIXA LÍQUIDO (Ajustes da Planilha)
-    # Aqui consolidamos: JCP + Despesas + Cotas a Emitir/Resgatar
-    net_ajustes = valor_receber - valor_pagar - vl_cotas_emitir - vl_cotas_resgatar
-    
-    caixa_ontem = caixa_base_ontem + net_ajustes
-    caixa_hoje = caixa_base_hoje + net_ajustes
+    provisoes = valor_receber - valor_pagar          # constante no dia
+    fluxo_cotas = -vl_cotas_emitir - vl_cotas_resgatar  # constante no dia
+
+    caixa_ontem = compromissada_ontem + provisoes + fluxo_cotas
+    caixa_hoje = compromissada_hoje + provisoes + fluxo_cotas
 
     return pd.DataFrame(linhas), cota_ontem, qtd_cotas, pl, caixa_ontem, caixa_hoje
-
 
 
 
